@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/beings/
+data/teams/
+data/analysis/
+data/sandbox.json
+.env

@@ -1,0 +1,21 @@
+{
+  "name": "nanosociety",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx nanosociety.ts --seed",
+    "start": "tsx nanosociety.ts --run",
+    "analyze": "tsx nanosociety.ts --analyze"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "dotenv": "^16.4.7",
+    "openai": "^4.78.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

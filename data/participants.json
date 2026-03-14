@@ -1,0 +1,818 @@
+[
+  {
+    "name": "Aaron Siddiky",
+    "background": "Founder @ Enagrams, Fellow @ NEA, CS @ Columbia"
+  },
+  {
+    "name": "Abhishek Nadgeri",
+    "background": "CS PhD @ Stony Brook University"
+  },
+  {
+    "name": "Adam Banks",
+    "background": "Math and CS @ Stanford"
+  },
+  {
+    "name": "Adam Lee",
+    "background": "Generative Models & 3D @ BAIR"
+  },
+  {
+    "name": "Adan Lopez",
+    "background": "AI Security Engineer @ LinkedIn"
+  },
+  {
+    "name": "Aditi Jain",
+    "background": "Product & Growth Builder, ex-Instagram, Meta, early Dropbox"
+  },
+  {
+    "name": "Aditya Mishra",
+    "background": "ML Engineer @ Google"
+  },
+  {
+    "name": "Aditya Ramkumar",
+    "background": "Data agents @ Snowflake, formerly agents @ Netflix, AI @ Google"
+  },
+  {
+    "name": "Adonai Addo",
+    "background": "Founder & CTO @ Loopity Loops"
+  },
+  {
+    "name": "Ajinkya Kiran Mulay",
+    "background": "Senior Research Scientist @ Meta, ECE PhD Purdue"
+  },
+  {
+    "name": "Akshay Syal",
+    "background": "AI Engineer @ Humanitarians AI"
+  },
+  {
+    "name": "Alan Shen",
+    "background": "Harker 2026, incoming OR @ Columbia"
+  },
+  {
+    "name": "Alex Fu",
+    "background": "Building AI for hardware"
+  },
+  {
+    "name": "Alex Gureev",
+    "background": "Co-founder @ Buildcheck.ai, Stanford MBA/CS"
+  },
+  {
+    "name": "Alex Kiam",
+    "background": "CEO @ neonmoneytalks.com"
+  },
+  {
+    "name": "Alex Sherstinsky",
+    "background": "MIT PhD; Software Engineer, Research Scientist"
+  },
+  {
+    "name": "Alexandre Carlhammar",
+    "background": "AI & Robotics @ Stanford Aero/Astro"
+  },
+  {
+    "name": "Alexa Orent",
+    "background": "AGI House Community & Operations"
+  },
+  {
+    "name": "Allen Su",
+    "background": "Cofounder CEO codedreams.app"
+  },
+  {
+    "name": "Amitay Gilboa",
+    "background": "Co-founder @ Play (formerly spring.new)"
+  },
+  {
+    "name": "Andrawes Al Bahou",
+    "background": "Founder @ Compute Desk"
+  },
+  {
+    "name": "Andreas Haupt",
+    "background": "Econ+CS Postdoc @ Stanford HAI, former MIT"
+  },
+  {
+    "name": "Andrei Khylkouski",
+    "background": "Building technical leverage for others"
+  },
+  {
+    "name": "Andrey Gizdov",
+    "background": "Math PhD dropout @ Harvard, neuroAI @ YC X26 (stealth)"
+  },
+  {
+    "name": "Anh Ho",
+    "background": "Embedded SWE @ Stanford Solar Car Project"
+  },
+  {
+    "name": "Anita Motwani",
+    "background": "Working on GEO"
+  },
+  {
+    "name": "Ankit Shah",
+    "background": "LLM Arch Assoc Director & Tech Lead @ Accenture, PhD CMU LTI"
+  },
+  {
+    "name": "Anna Siamionava",
+    "background": "Data Science student @ Stanford, AI & security research"
+  },
+  {
+    "name": "Anni Zimina",
+    "background": "Ex-BCG, ex-IBM, Stanford grad"
+  },
+  {
+    "name": "Anshul Gupta",
+    "background": "Building Ema, x-Google, Yale, IIT-Delhi"
+  },
+  {
+    "name": "Anthony Lau",
+    "background": "Business Development @ Tencent"
+  },
+  {
+    "name": "Anya Korsakova",
+    "background": "Staff ML Scientist @ Tempus AI"
+  },
+  {
+    "name": "Aoife Henry",
+    "background": "Founder @ Zentus Inc, Stanford Sustainability Accelerator"
+  },
+  {
+    "name": "Arnav Gupta",
+    "background": "Founder @ Athira, Researcher @ Stanford SAIL"
+  },
+  {
+    "name": "Artem Tkachuk",
+    "background": "Compute Infra Engineer @ Netflix, CS + Applied Math @ Berkeley"
+  },
+  {
+    "name": "Ashutosh Saxena",
+    "background": "Physical AI, CS PhD @ Stanford, Founder & CEO TorqueAGI"
+  },
+  {
+    "name": "Aswin Sezhiyan",
+    "background": "ML Infra Engineer @ Pinterest"
+  },
+  {
+    "name": "Audrey Leung",
+    "background": "Founder and AI/UX consultant, ex-Google, Meta, Apple"
+  },
+  {
+    "name": "Aumkar Renavikar",
+    "background": "Building Parallax (worlds for robots), prev BMW, UIUC, CMU"
+  },
+  {
+    "name": "Ayan Bhowmick",
+    "background": "Founding Engineer @ ShiplightAI"
+  },
+  {
+    "name": "Aydin Abiar",
+    "background": "ML scientist/engineer"
+  },
+  {
+    "name": "Barkley Dai",
+    "background": "Product Lead @ Luma AI"
+  },
+  {
+    "name": "Bill Sun",
+    "background": "GALPHA.AI; PINAI.IO; AGI House"
+  },
+  {
+    "name": "Bin Sheng",
+    "background": "Builder with AI, Founder of AnyTransformer Inc"
+  },
+  {
+    "name": "Blaire Pang",
+    "background": "Founder & SWE at Meta; founder of BeOnCall"
+  },
+  {
+    "name": "Bowu365",
+    "background": "Software Engineer"
+  },
+  {
+    "name": "Brandon Wolfson",
+    "background": "MLE working on GenAI Safety @ Meta"
+  },
+  {
+    "name": "Brian Reardon",
+    "background": "Multiple time founder, hackathon winner, working on world models"
+  },
+  {
+    "name": "Cat Mou",
+    "background": "Gaming Investment @ Tencent"
+  },
+  {
+    "name": "Chenchen Cecilia Zhao",
+    "background": "MBA @ Stanford"
+  },
+  {
+    "name": "Chethin Manage",
+    "background": "Engineer @ Meta"
+  },
+  {
+    "name": "Chunchao Guo",
+    "background": "Head of Tencent Hunyuan 3D"
+  },
+  {
+    "name": "Collin Bentley",
+    "background": "Co-founder building in agentic commerce / PearX W26"
+  },
+  {
+    "name": "Conor Brennan-Burke",
+    "background": "CEO & Founder @ Hyperspell"
+  },
+  {
+    "name": "Cortney Weintz",
+    "background": "Data Nerd, Health Enthusiast"
+  },
+  {
+    "name": "Cris Lenta",
+    "background": "Building the first general-purpose emergent life simulator, AI Research (MIT Press)"
+  },
+  {
+    "name": "Daisy",
+    "background": "Partner @ GC"
+  },
+  {
+    "name": "Damir Vrabac",
+    "background": "Stanford alum, research under Andrew Ng & Jure Leskovec, cofounded Valar Labs"
+  },
+  {
+    "name": "Darius Karel",
+    "background": "Staff Engineer @ OpenAI"
+  },
+  {
+    "name": "David",
+    "background": "Exited founder"
+  },
+  {
+    "name": "Dean Deng",
+    "background": "MSE PhD, ICME MS @ Stanford"
+  },
+  {
+    "name": "Derrick Kondo",
+    "background": "Staff AI Engineer, Tech Lead, CS PhD"
+  },
+  {
+    "name": "Devi Parikh",
+    "background": "Co-founder and Co-CEO, yutori.com"
+  },
+  {
+    "name": "Di Xiao",
+    "background": "Builder @ Agent Opus, Labs, Story Mode"
+  },
+  {
+    "name": "Dingbang Ren",
+    "background": "BD & GTM @ veryloving, Stats PhD @ UCSC"
+  },
+  {
+    "name": "Elijah Qi",
+    "background": "Software Engineer @ TikTok"
+  },
+  {
+    "name": "Eliza Kosoy",
+    "background": "PhD researcher, youth/AI, Character.AI, prev UC Berkeley, Google DeepMind, MIT"
+  },
+  {
+    "name": "Erik",
+    "background": "CS PhD"
+  },
+  {
+    "name": "Ethan He",
+    "background": "CS PhD @ UC Davis"
+  },
+  {
+    "name": "Felix Xiao",
+    "background": "Ex Tencent LLM eval director"
+  },
+  {
+    "name": "Francesco Ciannella",
+    "background": "Product Research Engineer, Voice Agents @ NVIDIA"
+  },
+  {
+    "name": "Gabi Zuniga",
+    "background": "Agentic development"
+  },
+  {
+    "name": "Gavin Guo",
+    "background": "Researcher @ MSL, PhD @ MIT"
+  },
+  {
+    "name": "George Gulabyan",
+    "background": "Founder @ TensorAI"
+  },
+  {
+    "name": "Glitterchaos",
+    "background": "Multimodal Vision Applications"
+  },
+  {
+    "name": "Gloria Zhang",
+    "background": "Investment partner @ DCM Ventures"
+  },
+  {
+    "name": "Grace Lam",
+    "background": "Researcher @ Character.AI, prev Palantir, Nvidia, Morgan Stanley"
+  },
+  {
+    "name": "Gunjan Jalori",
+    "background": "ML Engineer & part time researcher @ Google"
+  },
+  {
+    "name": "Hamudi Naanaa",
+    "background": "Co-Founder & CTO @ Portal AI, ex-Apple, Google, Amazon"
+  },
+  {
+    "name": "Han Ke",
+    "background": "Senior Software Engineer @ Google DeepMind"
+  },
+  {
+    "name": "Hangxin",
+    "background": "Dev @ Google"
+  },
+  {
+    "name": "Hank",
+    "background": "AI Safety & Reasoning, Scale AI, Stanford GSB"
+  },
+  {
+    "name": "Hanseul Jun",
+    "background": "Software Engineer @ Apple, Communication PhD Stanford"
+  },
+  {
+    "name": "Hao Liang",
+    "background": "Builder @ Tencent Games"
+  },
+  {
+    "name": "Hardik (Harry) Choksi",
+    "background": "Building Enterprise Superintelligence, Stanford, 2x Founder"
+  },
+  {
+    "name": "Harman Singh",
+    "background": "CS PhD @ BAIR, UC Berkeley"
+  },
+  {
+    "name": "Harrison Qian",
+    "background": "Prev Orbit Engineering; exploring AI, ML, CS"
+  },
+  {
+    "name": "Harry Du",
+    "background": "Founding Engineer @ AgentMail"
+  },
+  {
+    "name": "Ishita Mangla",
+    "background": "ML @ Lila Sciences, prev CS @ Stanford"
+  },
+  {
+    "name": "Jacob Smith",
+    "background": "Founder @ Incepta"
+  },
+  {
+    "name": "Jeffrey Li",
+    "background": "MIT '30, USA Physics Team '25, CVPR '26"
+  },
+  {
+    "name": "Jenny",
+    "background": "AI safety and security @ Google DeepMind"
+  },
+  {
+    "name": "Jesus Lares",
+    "background": "Head of Engineering @ AGI House"
+  },
+  {
+    "name": "Jiachen Liu",
+    "background": "Founder @ Stealth, Research Scientist @ Meta, CS PhD UMich"
+  },
+  {
+    "name": "Jiang Li",
+    "background": "VC @ Makers Fund, independent dev"
+  },
+  {
+    "name": "John Chung",
+    "background": "Founder @ OTseek"
+  },
+  {
+    "name": "Jose Giron",
+    "background": "Founder @ Major Tech, Stanford CS"
+  },
+  {
+    "name": "Joseph Zhu",
+    "background": "CS @ SAIL"
+  },
+  {
+    "name": "Joshua Lin",
+    "background": "CEO & Co-founder @ Opal Intelligence, 12x hackathon winner, UCSD"
+  },
+  {
+    "name": "Juan Wisznia",
+    "background": "AI Engineer @ Factored (Andrew Ng's AI Fund), EMNLP 2024 & ACL 2025"
+  },
+  {
+    "name": "Junfan Zhu",
+    "background": "AI Engineer @ Tensor, CS Georgia Tech, Math UChicago, incoming GSB Stanford"
+  },
+  {
+    "name": "Justin Sato",
+    "background": "AI Engineer @ Tomo, Math/CS @ Stanford"
+  },
+  {
+    "name": "Kaivan Shah",
+    "background": "Senior ML Engineer @ Meta"
+  },
+  {
+    "name": "Kamal Kant",
+    "background": "Founder @ physical-ai.ai, IIT Delhi"
+  },
+  {
+    "name": "Kamila Dabrowska",
+    "background": "Chief of Staff, AI-native Startup"
+  },
+  {
+    "name": "Karen Lu",
+    "background": "Do stuff for fun @ Google"
+  },
+  {
+    "name": "Kartik Ganapathi",
+    "background": "Founding Scientist at Vertical AI startup, PhD EECS Berkeley"
+  },
+  {
+    "name": "Katherine Zhao",
+    "background": "Investor @ Newmay Ventures"
+  },
+  {
+    "name": "Kathy Wang",
+    "background": "Co-founder @ Press Club, ex-Dropbox, OpenAI hackathon winner, Cornell"
+  },
+  {
+    "name": "Kevin Jue",
+    "background": "Head of Applications / Founding Engineer @ Succinct Labs (zkVM)"
+  },
+  {
+    "name": "Kyoung Whan Choe",
+    "background": "Robot Learning Engineer, Open Source Contributor"
+  },
+  {
+    "name": "Leon Li",
+    "background": "Staff Software Engineer"
+  },
+  {
+    "name": "Li",
+    "background": "SDE"
+  },
+  {
+    "name": "Lianghao Chen",
+    "background": "Corporate guy with computing resources"
+  },
+  {
+    "name": "Liangcheng Dong",
+    "background": "CS @ Cornell, Founder & CEO of ThreeTimes"
+  },
+  {
+    "name": "Lidiya Terpel",
+    "background": "Inworld"
+  },
+  {
+    "name": "Lucas Chen",
+    "background": "Senior @ Harker School, incoming CS & Biochem @ Stanford"
+  },
+  {
+    "name": "Madhav Goenka",
+    "background": "Founder, Consulting, Stanford alum, ex-Tesla"
+  },
+  {
+    "name": "Mark Nour",
+    "background": "CS Senior @ UC Berkeley, prev SWE Intern @ Netflix"
+  },
+  {
+    "name": "Maritza Roberts",
+    "background": "Junior Analyst @ Caldicot Capital PE Firm"
+  },
+  {
+    "name": "Mateusz Nedzi",
+    "background": "Founding Engineer @ Ona Health"
+  },
+  {
+    "name": "Maya Walcher",
+    "background": "Graduate @ MIT"
+  },
+  {
+    "name": "Minkai Xu",
+    "background": "Research Scientist @ Google DeepMind"
+  },
+  {
+    "name": "Mohit Garg",
+    "background": "MLE @ NVIDIA, alum UCLA and BITS Pilani"
+  },
+  {
+    "name": "Mohnish Behera",
+    "background": "ML Engineer @ Athira"
+  },
+  {
+    "name": "Morgan Howell",
+    "background": "Co-Founder/CTO @ SeniorCareMarketing.ai & TarheelTactics.com"
+  },
+  {
+    "name": "Ms.bonnieschen",
+    "background": "AI UX product designer"
+  },
+  {
+    "name": "Nan Zhang",
+    "background": "Exploring something new, former SaaS"
+  },
+  {
+    "name": "Nikhil Reddy",
+    "background": "Data Science @ Berkeley"
+  },
+  {
+    "name": "Nilesh Agarwal",
+    "background": "Building Inferless (Sequoia backed), ex Amazon"
+  },
+  {
+    "name": "Nimal Periasamy",
+    "background": "Applied Math @ Berkeley, Founder @ Rayaboy"
+  },
+  {
+    "name": "Nolan Jetter",
+    "background": "MS ME @ Stanford, founder @ posetek.net"
+  },
+  {
+    "name": "OJ - Orkhan Javadli",
+    "background": "MIT Grad pursuing AI research @ Stanford"
+  },
+  {
+    "name": "Peter",
+    "background": "Building AI-native funds"
+  },
+  {
+    "name": "Pranay Gupta",
+    "background": "Founder @ paninios.com, ex Google Staff Engineer"
+  },
+  {
+    "name": "Prapti Trivedi",
+    "background": "Applied Scientist @ Amazon"
+  },
+  {
+    "name": "Praveen Shanbhag",
+    "background": "Founder & CEO @ NameCoach Inc."
+  },
+  {
+    "name": "Rachel Brenner",
+    "background": "Growth @ CPG start up"
+  },
+  {
+    "name": "Rachit Nandwani",
+    "background": "Founder"
+  },
+  {
+    "name": "Rahel Jhirad",
+    "background": "Econ PhD, Math MS, Founder @ Imaginator.ai"
+  },
+  {
+    "name": "Reza Jamei",
+    "background": "Director of ML @ Altana Technologies, PhD Physics"
+  },
+  {
+    "name": "Richard Fan",
+    "background": "Researcher @ Pika Labs"
+  },
+  {
+    "name": "Richard Hsu",
+    "background": "Staff GenAI tech lead engineer"
+  },
+  {
+    "name": "Rithika Kacham",
+    "background": "Founder @ Verita AI, Stanford CS, Ex-Mercor"
+  },
+  {
+    "name": "Rocky Yu",
+    "background": "AGI House"
+  },
+  {
+    "name": "Roddsi Sarkar",
+    "background": "Product Manager @ ByteDance"
+  },
+  {
+    "name": "Rodrigo Schmitt",
+    "background": "AE PhD @ Purdue, Founder/CCO @ stellerian.com"
+  },
+  {
+    "name": "Roshan Amurthur",
+    "background": "Computational Neuroscience @ UCSF, Neural Eng + CS @ UIUC"
+  },
+  {
+    "name": "Rudy Pathak",
+    "background": "CS + Bio @ Stanford, Co-Founder @ Brylo"
+  },
+  {
+    "name": "Rui Ren",
+    "background": "Head of BD @ querit.ai"
+  },
+  {
+    "name": "Ruijie Mao",
+    "background": "Dev @ Retell AI"
+  },
+  {
+    "name": "Sagar Verma",
+    "background": "Founder @ Zeupiter.com"
+  },
+  {
+    "name": "Sairam Mamidi",
+    "background": "Technical Founder @ Incepta"
+  },
+  {
+    "name": "Sandy Jin",
+    "background": "Founder (Stealth)"
+  },
+  {
+    "name": "Sankeerth Rao Karingula",
+    "background": "Embedded controls engineer @ LHP Engineering"
+  },
+  {
+    "name": "Sebastian Zhou",
+    "background": "Investing / Building AI Agents"
+  },
+  {
+    "name": "Shirley Lin",
+    "background": "Tencent Games AI Investment Director"
+  },
+  {
+    "name": "Shirui Chen",
+    "background": "PhD @ UW"
+  },
+  {
+    "name": "Shivani Bajaj",
+    "background": "MBA @ Stanford GSB, prev ElevenLabs, McKinsey"
+  },
+  {
+    "name": "Shmuel Hizmi",
+    "background": "Co-founder and CTO @ spring.new"
+  },
+  {
+    "name": "Shimon Horwitz",
+    "background": "MIT MBA"
+  },
+  {
+    "name": "Shubham Banavalikar",
+    "background": "Software Engineer @ Google"
+  },
+  {
+    "name": "Shumo Chu",
+    "background": "Cofounder @ General Intelligence Labs, ex-prof UCSB, ex Google"
+  },
+  {
+    "name": "Sid Potti",
+    "background": "CS AI @ Stanford"
+  },
+  {
+    "name": "Sidra Miconi",
+    "background": "PhD Microbial Molecular Genetics, Certified GenAI by Elastic"
+  },
+  {
+    "name": "Simo Rachidi",
+    "background": "Streaming anomaly detection, agentic investigation flows"
+  },
+  {
+    "name": "Siqi He",
+    "background": "Founding Product Lead @ Pika"
+  },
+  {
+    "name": "Siv Sambasivam",
+    "background": "Previously co-founder of GoodRx, starting HcHero"
+  },
+  {
+    "name": "Sophia Kang",
+    "background": "AI consultant, Ex BCG"
+  },
+  {
+    "name": "Sophie Tollmann",
+    "background": "MBA / BSc CS"
+  },
+  {
+    "name": "Spencer Ma",
+    "background": "Stanford MBA, Intern @ BITKRAFT"
+  },
+  {
+    "name": "Sriram Varun Vobilisetty",
+    "background": "AI PM @ Glean, MBA Candidate Stanford GSB, IIT Kanpur CS"
+  },
+  {
+    "name": "Steffen Holm",
+    "background": "Co-founder jars ai, generative 3D worlds"
+  },
+  {
+    "name": "Steven Dillmann",
+    "background": "Stanford PhD Student, AI for Science"
+  },
+  {
+    "name": "Suyi Liu",
+    "background": "Engineer @ MSL"
+  },
+  {
+    "name": "Talha Oz",
+    "background": "Agent Builder @ Amazon"
+  },
+  {
+    "name": "Taralyn Nguyen",
+    "background": "Stanford senior CS & Management, going into PM"
+  },
+  {
+    "name": "Tathagat Verma",
+    "background": "Founder @ Beyond Horizon Labs, CS @ Stanford"
+  },
+  {
+    "name": "Tingyu Zhang",
+    "background": "Robotics Engineer @ Intbot, USC CE, U of T CS"
+  },
+  {
+    "name": "Tomasz Bachosz",
+    "background": "CS MS Oxford, BSc NYUAD, founder @ Ona Health"
+  },
+  {
+    "name": "Travis Yang",
+    "background": "Applied AI Product Operations Manager @ Google"
+  },
+  {
+    "name": "Umesh Khanna",
+    "background": "Talent Engineering @ xAI"
+  },
+  {
+    "name": "Velvin Fu",
+    "background": "Research Scientist @ Meta"
+  },
+  {
+    "name": "Vijay",
+    "background": "CS @ Waterloo"
+  },
+  {
+    "name": "Vivek Palan",
+    "background": "Product Management, Strategy, BD, Entrepreneurship"
+  },
+  {
+    "name": "Vivian Zhou",
+    "background": "CS @ Stanford, ex product & engineer @ Stripe, TikTok"
+  },
+  {
+    "name": "Vlad Panchenko",
+    "background": "CEO & Co-Founder @ Portal AI"
+  },
+  {
+    "name": "Voytech Basinski",
+    "background": "Founder & CTO @ Ona Health"
+  },
+  {
+    "name": "Weijia Zhang",
+    "background": "Applied Scientist @ Amazon"
+  },
+  {
+    "name": "Wenqi Xian",
+    "background": "Research Scientist @ Luma AI"
+  },
+  {
+    "name": "Xiangyi Li",
+    "background": "Founder @ BenchFlow"
+  },
+  {
+    "name": "Yaning Hu",
+    "background": "AI Agent Engineer @ Meta"
+  },
+  {
+    "name": "Yatish",
+    "background": "Tech Lead @ Asana"
+  },
+  {
+    "name": "Yeabsira Teshome",
+    "background": "Founder @ Aule-Technologies, Ex Palantir"
+  },
+  {
+    "name": "Yi",
+    "background": "Founder @ FlashLabs"
+  },
+  {
+    "name": "Yidi Du",
+    "background": "Research Product Manager @ ByteDance"
+  },
+  {
+    "name": "Yiran Guo",
+    "background": "Engineer @ TikTok"
+  },
+  {
+    "name": "Yusuf Ozuysal",
+    "background": "Ex Director of Engineering Snowflake Cortex AI"
+  },
+  {
+    "name": "Yuwei Zhang",
+    "background": "Building World Models & Embodied AI @ ByteDance"
+  },
+  {
+    "name": "Zachary Zhang",
+    "background": "MTS @ Fireworks AI, Inference & Multimodality"
+  },
+  {
+    "name": "Zesheng",
+    "background": "Dev @ Meta"
+  },
+  {
+    "name": "Zeyu Li",
+    "background": "PhD @ UMich"
+  },
+  {
+    "name": "Ziyi Zhou",
+    "background": "AI Engineer @ RoboForce, ex-Samsung Research, CMU CV"
+  },
+  {
+    "name": "Zixin Yong",
+    "background": "Product Lead @ TikTok"
+  }
+]
