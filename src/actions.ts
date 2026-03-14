@@ -98,6 +98,62 @@ export function parseSeedResponse(raw: string): { identity: string; goal: string
   };
 }
 
+// ── Batch Parsing ────────────────────────────────────────────────────────
+
+export function parseBatchActionResponse(
+  raw: string,
+  participantNames: string[],
+): Map<string, ParsedResponse> {
+  const results = new Map<string, ParsedResponse>();
+
+  const namePattern = participantNames
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const regex = new RegExp(`\\[\\s*(${namePattern})\\s*\\]`, 'gi');
+
+  const markers: { name: string; index: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const matchedName = participantNames.find(
+      n => n.toLowerCase() === match![1]!.toLowerCase()
+    );
+    if (matchedName) {
+      markers.push({ name: matchedName, index: match.index });
+    }
+  }
+
+  for (let i = 0; i < markers.length; i++) {
+    const start = markers[i]!.index + markers[i]!.name.length + 2; // skip [NAME]
+    const end = i + 1 < markers.length ? markers[i + 1]!.index : raw.length;
+    const block = raw.slice(start, end).trim();
+
+    try {
+      const parsed = parseActionResponse(block);
+      results.set(markers[i]!.name, parsed);
+    } catch {
+      // skip malformed block
+    }
+  }
+
+  // Default missing participants to chill
+  for (const name of participantNames) {
+    if (!results.has(name)) {
+      results.set(name, {
+        narrative: '',
+        footer: {
+          ACTION: 'chill',
+          ROOM: 'MAIN_ROOM',
+          ENERGY: 0,
+          MOMENTUM: 0,
+          MORALE: 0,
+        },
+      });
+    }
+  }
+
+  return results;
+}
+
 // ── Side-Effects ──────────────────────────────────────────────────────────
 
 function clamp(val: number, min: number, max: number): number {

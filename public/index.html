@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nanoSociety — AGI House</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --fg: #33ff33;
+    --fg-dim: #1a8a1a;
+    --fg-bright: #66ff66;
+    --border: #1a5a1a;
+    --panel-bg: #0d0d0d;
+    --highlight: #ffff00;
+    --amber: #ffaa00;
+    --cyan: #00ffff;
+    --magenta: #ff00ff;
+    --red: #ff4444;
+    --blue: #4488ff;
+    --white: #cccccc;
+    --gray: #666666;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* CRT scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto 1fr 120px;
+    height: 100vh;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  #header {
+    grid-column: 1 / -1;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--panel-bg);
+  }
+
+  #header h1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--fg-bright);
+    white-space: nowrap;
+  }
+
+  #search-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 4px 8px;
+    width: 240px;
+    outline: none;
+  }
+
+  #search-box:focus { border-color: var(--fg); }
+  #search-box::placeholder { color: var(--fg-dim); }
+
+  #status-bar {
+    margin-left: auto;
+    color: var(--fg-dim);
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  #status-bar span { margin-left: 12px; }
+  #status-bar .phase { color: var(--amber); }
+  #status-bar .tick { color: var(--fg); }
+
+  #progress {
+    color: var(--fg-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 360px;
+  }
+
+  #progress.active {
+    color: var(--amber);
+  }
+
+  #progress .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── Main area ── */
+  #floor-plan {
+    overflow: hidden;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+  }
+
+  #sidebar {
+    border-left: 1px solid var(--border);
+    background: var(--panel-bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── Footer log ── */
+  #log-panel {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border);
+    background: var(--panel-bg);
+    padding: 4px 16px;
+    height: 120px;
+    min-height: 120px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 12px;
+  }
+
+  #log-panel .log-entry {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px 0;
+  }
+
+  #log-panel .log-tag {
+    color: var(--fg-dim);
+  }
+
+  /* ── Floor plan rooms ── */
+  .floor-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .room-connector {
+    display: flex;
+    align-items: center;
+    padding: 0 2px;
+    color: var(--border);
+    font-size: 13px;
+    justify-content: center;
+    min-width: 24px;
+    flex-shrink: 0;
+  }
+
+  .room-box {
+    border: 1px solid var(--border);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .room-box .room-label {
+    background: var(--border);
+    color: var(--bg);
+    padding: 2px 6px;
+    font-weight: 700;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .room-box .room-body {
+    padding: 4px 6px;
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+
+  .room-box .room-body::-webkit-scrollbar { width: 4px; }
+  .room-box .room-body::-webkit-scrollbar-track { background: transparent; }
+  .room-box .room-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .room-box .room-body .empty {
+    color: var(--fg-dim);
+    font-style: italic;
+  }
+
+  .team-group {
+    margin-bottom: 2px;
+  }
+
+  .team-label {
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .initials {
+    cursor: pointer;
+    padding: 0 1px;
+  }
+
+  .initials.solo {
+    color: var(--fg-dim);
+  }
+
+  .initials.highlight {
+    background: var(--highlight);
+    color: var(--bg);
+  }
+
+  .initials.selected {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* ── Sidebar ── */
+  #search-results {
+    max-height: 180px;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--border);
+    display: none;
+  }
+
+  #search-results.visible { display: block; }
+
+  .search-item {
+    padding: 4px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+  }
+
+  .search-item .si-room {
+    color: var(--fg-dim);
+    font-size: 11px;
+  }
+
+  #detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  #detail-panel h2 {
+    font-size: 14px;
+    color: var(--fg-bright);
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+
+  #detail-panel .empty-detail {
+    color: var(--fg-dim);
+    padding: 20px 0;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .detail-section {
+    margin-bottom: 12px;
+  }
+
+  .detail-section label {
+    color: var(--fg-dim);
+    font-size: 11px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .detail-section .value {
+    font-size: 12px;
+    word-wrap: break-word;
+  }
+
+  .stat-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0;
+    font-size: 11px;
+  }
+
+  .stat-bar .stat-label {
+    width: 30px;
+    color: var(--fg-dim);
+    text-align: right;
+  }
+
+  .stat-bar .stat-track {
+    flex: 1;
+    height: 8px;
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+  }
+
+  .stat-bar .stat-fill {
+    height: 100%;
+    transition: width 0.3s;
+  }
+
+  .stat-bar .stat-val {
+    width: 28px;
+    text-align: right;
+    color: var(--fg);
+  }
+
+  .stat-energy .stat-fill { background: var(--fg); }
+  .stat-momentum .stat-fill { background: var(--cyan); }
+  .stat-morale .stat-fill { background: var(--amber); }
+
+  .detail-log {
+    font-size: 11px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .detail-log-entry {
+    padding: 2px 0;
+    border-bottom: 1px solid #111;
+    color: var(--fg-dim);
+  }
+
+  .detail-log-entry .dle-action {
+    color: var(--fg);
+  }
+
+  /* ── Connection status ── */
+  #connection {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    flex-shrink: 0;
+  }
+
+  #connection.connected { background: var(--fg); }
+
+  /* ── Start overlay ── */
+  #start-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.7);
+  }
+
+  #start-overlay.hidden { display: none; }
+
+  #start-btn {
+    background: transparent;
+    border: 2px solid var(--fg);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 16px 48px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  #start-btn:disabled {
+    border-color: var(--fg-dim);
+    color: var(--fg-dim);
+    cursor: default;
+  }
+
+  /* ── Team colors ── */
+  .tc0  { color: #00ffff; }
+  .tc1  { color: #ff00ff; }
+  .tc2  { color: #ffff00; }
+  .tc3  { color: #00ff00; }
+  .tc4  { color: #ff4444; }
+  .tc5  { color: #4488ff; }
+  .tc6  { color: #cccccc; }
+  .tc7  { color: #888888; }
+  .tc8  { color: #66ffff; }
+  .tc9  { color: #ff66ff; }
+  .tc10 { color: #ffff66; }
+  .tc11 { color: #66ff66; }
+  .tc12 { color: #ff8888; }
+  .tc13 { color: #88aaff; }
+  .tc14 { color: #ffffff; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="connection"></div>
+    <h1>AGI HOUSE</h1>
+    <input id="search-box" type="text" placeholder="Search participants..." autocomplete="off">
+    <div id="progress"></div>
+    <div id="status-bar">
+      <span class="tick" id="st-tick">--/--</span>
+      <span id="st-time">--:--</span>
+      <span class="phase" id="st-phase">---</span>
+      <span id="st-counts">T:0 S:0 P:0</span>
+    </div>
+  </div>
+
+  <div id="floor-plan"></div>
+
+  <div id="sidebar">
+    <div id="search-results"></div>
+    <div id="detail-panel">
+      <div class="empty-detail">Click a participant or search to inspect</div>
+    </div>
+  </div>
+
+  <div id="log-panel"></div>
+</div>
+
+<div id="start-overlay">
+  <button id="start-btn" disabled>Connecting...</button>
+</div>
+
+<script>
+const TEAM_COLORS = Array.from({length: 15}, (_, i) => `tc${i}`);
+const teamColorMap = {};
+let teamColorIdx = 0;
+
+function getTeamColorClass(teamId) {
+  if (!teamColorMap[teamId]) {
+    teamColorMap[teamId] = TEAM_COLORS[teamColorIdx % TEAM_COLORS.length];
+    teamColorIdx++;
+  }
+  return teamColorMap[teamId];
+}
+
+function getInitials(name) {
+  const parts = name.split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+const ROOM_LAYOUT = [
+  {
+    rooms: [
+      { key: 'FRONT_GARDEN', label: 'FRONT GARDEN', flex: 3 },
+      { key: 'MAIN_ROOM', label: 'MAIN ROOM', flex: 7 },
+    ],
+  },
+  {
+    rooms: [
+      { key: 'BAR', label: 'BAR', flex: 2.5 },
+      { key: 'KITCHEN', label: 'KITCHEN', flex: 3.5 },
+      { key: 'BACK_GARDEN', label: 'BACK GARDEN', flex: 3.5 },
+    ],
+  },
+  {
+    rooms: [
+      { key: 'OFFICE', label: 'OFFICE', flex: 2.5 },
+      { key: 'STAIRS', label: 'STAIRS / 2F', flex: 3, mergeKeys: ['STAIRS', 'SECOND_FLOOR'] },
+      { key: 'BATHROOM', label: 'BATH+STOR', flex: 3, mergeKeys: ['BATHROOM', 'STORAGE'] },
+    ],
+  },
+];
+
+let state = null;
+let selectedParticipantId = null;
+let searchQuery = '';
+let simStarted = false;
+
+// ── WebSocket ──
+
+let ws;
+let reconnectTimer;
+const startBtn = document.getElementById('start-btn');
+const startOverlay = document.getElementById('start-overlay');
+
+function connect() {
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${protocol}://${location.host}`);
+
+  ws.onopen = () => {
+    document.getElementById('connection').classList.add('connected');
+    if (!simStarted) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Start Simulation';
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connection').classList.remove('connected');
+    if (!simStarted) {
+      startBtn.disabled = true;
+      startBtn.textContent = 'Connecting...';
+    }
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+
+  ws.onmessage = (evt) => {
+    const msg = JSON.parse(evt.data);
+    const progressEl = document.getElementById('progress');
+    if (msg.type === 'progress') {
+      progressEl.textContent = '⟳ ' + msg.message;
+      progressEl.classList.add('active');
+      return;
+    }
+    // tick payload
+    progressEl.textContent = '';
+    progressEl.classList.remove('active');
+    state = msg;
+    render();
+  };
+}
+
+startBtn.addEventListener('click', () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ cmd: 'start' }));
+    simStarted = true;
+    startOverlay.classList.add('hidden');
+  }
+});
+
+connect();
+
+// ── Rendering ──
+
+function render() {
+  if (!state) return;
+  renderStatusBar();
+  renderFloorPlan();
+  renderLogPanel();
+  renderSearchResults();
+  if (selectedParticipantId) renderDetail(selectedParticipantId);
+}
+
+function renderStatusBar() {
+  document.getElementById('st-tick').textContent = `${state.tick}/${state.totalTicks}`;
+  document.getElementById('st-time').textContent = state.time;
+  document.getElementById('st-phase').textContent = state.phase;
+  const teams = state.teams.length;
+  const solos = state.participants.filter(p => !p.team_id).length;
+  document.getElementById('st-counts').textContent = `T:${teams} S:${solos} P:${state.participants.length}`;
+}
+
+function renderFloorPlan() {
+  const container = document.getElementById('floor-plan');
+  container.innerHTML = '';
+
+  for (const row of ROOM_LAYOUT) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'floor-row';
+
+    for (let i = 0; i < row.rooms.length; i++) {
+      if (i > 0) {
+        const conn = document.createElement('div');
+        conn.className = 'room-connector';
+        conn.textContent = '───';
+        rowDiv.appendChild(conn);
+      }
+
+      const roomDef = row.rooms[i];
+      const roomKeys = roomDef.mergeKeys || [roomDef.key];
+      const participants = state.participants.filter(p => roomKeys.includes(p.room));
+
+      const box = document.createElement('div');
+      box.className = 'room-box';
+      box.style.flex = roomDef.flex;
+
+      const label = document.createElement('div');
+      label.className = 'room-label';
+      label.textContent = `${roomDef.label} (${participants.length})`;
+      box.appendChild(label);
+
+      const body = document.createElement('div');
+      body.className = 'room-body';
+
+      if (participants.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'empty';
+        empty.textContent = '(empty)';
+        body.appendChild(empty);
+      } else {
+        const teamGroups = {};
+        const solos = [];
+
+        for (const p of participants) {
+          if (p.team_id) {
+            if (!teamGroups[p.team_id]) teamGroups[p.team_id] = [];
+            teamGroups[p.team_id].push(p);
+          } else {
+            solos.push(p);
+          }
+        }
+
+        for (const [teamId, members] of Object.entries(teamGroups)) {
+          const group = document.createElement('div');
+          group.className = 'team-group';
+
+          const team = state.teams.find(t => t.id === teamId);
+          const cc = getTeamColorClass(teamId);
+
+          const tLabel = document.createElement('span');
+          tLabel.className = `team-label ${cc}`;
+          tLabel.textContent = `[${team ? team.name : teamId}] `;
+          group.appendChild(tLabel);
+
+          for (const m of members) {
+            const span = makeInitialSpan(m, cc);
+            group.appendChild(span);
+            group.appendChild(document.createTextNode(' '));
+          }
+
+          body.appendChild(group);
+        }
+
+        if (solos.length > 0) {
+          const soloDiv = document.createElement('div');
+          for (const p of solos) {
+            const span = makeInitialSpan(p, 'solo');
+            soloDiv.appendChild(span);
+            soloDiv.appendChild(document.createTextNode(' '));
+          }
+          body.appendChild(soloDiv);
+        }
+      }
+
+      box.appendChild(body);
+      rowDiv.appendChild(box);
+    }
+
+    container.appendChild(rowDiv);
+  }
+}
+
+function makeInitialSpan(participant, colorClass) {
+  const span = document.createElement('span');
+  span.className = `initials ${colorClass}`;
+  span.textContent = getInitials(participant.name);
+  span.dataset.pid = participant.id;
+  span.title = participant.name;
+
+  if (participant.id === selectedParticipantId) {
+    span.classList.add('selected');
+  }
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    if (participant.name.toLowerCase().includes(q)) {
+      span.classList.add('highlight');
+    }
+  }
+
+  span.addEventListener('click', () => selectParticipant(participant.id));
+  return span;
+}
+
+function renderLogPanel() {
+  const panel = document.getElementById('log-panel');
+  panel.innerHTML = '';
+
+  const logs = state.recentLogs.slice(-12);
+  if (logs.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'log-entry';
+    d.style.color = 'var(--fg-dim)';
+    d.textContent = 'Waiting for first actions...';
+    panel.appendChild(d);
+    return;
+  }
+
+  for (const entry of logs) {
+    const d = document.createElement('div');
+    d.className = 'log-entry';
+
+    const cc = entry.teamId ? getTeamColorClass(entry.teamId) : '';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = cc;
+    nameSpan.textContent = entry.name;
+
+    const tag = document.createElement('span');
+    tag.className = 'log-tag';
+    tag.textContent = ` [${entry.actionType}]`;
+
+    d.appendChild(nameSpan);
+    d.appendChild(document.createTextNode(': ' + entry.action.slice(0, 80) + '  '));
+    d.appendChild(tag);
+    panel.appendChild(d);
+  }
+
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ── Search ──
+
+const searchBox = document.getElementById('search-box');
+searchBox.addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  renderSearchResults();
+  renderFloorPlan();
+});
+
+function renderSearchResults() {
+  const container = document.getElementById('search-results');
+  if (!state || !searchQuery) {
+    container.classList.remove('visible');
+    container.innerHTML = '';
+    return;
+  }
+
+  const q = searchQuery.toLowerCase();
+  const matches = state.participants.filter(p => p.name.toLowerCase().includes(q));
+
+  if (matches.length === 0) {
+    container.classList.remove('visible');
+    container.innerHTML = '';
+    return;
+  }
+
+  container.classList.add('visible');
+  container.innerHTML = '';
+
+  for (const p of matches.slice(0, 20)) {
+    const item = document.createElement('div');
+    item.className = 'search-item';
+
+    const team = p.team_id ? state.teams.find(t => t.id === p.team_id) : null;
+    const cc = p.team_id ? getTeamColorClass(p.team_id) : '';
+    item.innerHTML = `<span class="${cc}">${esc(p.name)}</span> <span class="si-room">${p.room}${team ? ' · ' + esc(team.name) : ' · solo'}</span>`;
+    item.addEventListener('click', () => selectParticipant(p.id));
+    container.appendChild(item);
+  }
+}
+
+// ── Detail panel ──
+
+function selectParticipant(id) {
+  selectedParticipantId = id;
+  renderDetail(id);
+  renderFloorPlan();
+}
+
+function renderDetail(id) {
+  const panel = document.getElementById('detail-panel');
+  if (!state) return;
+
+  const p = state.participants.find(x => x.id === id);
+  if (!p) {
+    panel.innerHTML = '<div class="empty-detail">Participant not found</div>';
+    return;
+  }
+
+  const team = p.team_id ? state.teams.find(t => t.id === p.team_id) : null;
+  const cc = p.team_id ? getTeamColorClass(p.team_id) : '';
+
+  const recentActions = state.recentLogs
+    .filter(l => l.name === p.name)
+    .slice(-8);
+
+  panel.innerHTML = `
+    <h2>${esc(p.name)}</h2>
+
+    <div class="detail-section">
+      <label>IDENTITY</label>
+      <div class="value">${esc(p.identity_md)}</div>
+    </div>
+
+    <div class="detail-section">
+      <label>GOAL</label>
+      <div class="value">${esc(p.goal)}</div>
+    </div>
+
+    <div class="detail-section">
+      <label>LOCATION</label>
+      <div class="value">${p.room.replace(/_/g, ' ')}</div>
+    </div>
+
+    <div class="detail-section">
+      <label>TEAM</label>
+      <div class="value ${cc}">${team ? esc(team.name) + ' — "' + esc(team.project_name) + '"' : 'Solo'}</div>
+    </div>
+
+    <div class="detail-section">
+      <label>STATS</label>
+      ${statBar('E', p.stats.energy, 'stat-energy')}
+      ${statBar('M', p.stats.momentum, 'stat-momentum')}
+      ${statBar('Mo', p.stats.morale, 'stat-morale')}
+    </div>
+
+    <div class="detail-section">
+      <label>KNOWLEDGE</label>
+      <div class="value" style="font-size:11px">${p.world_knowledge.length > 0 ? p.world_knowledge.slice(-5).map(k => '· ' + esc(k)).join('<br>') : '<span style="color:var(--fg-dim)">None yet</span>'}</div>
+    </div>
+
+    <div class="detail-section">
+      <label>RECENT ACTIONS</label>
+      <div class="detail-log">
+        ${recentActions.length > 0
+          ? recentActions.map(a => `<div class="detail-log-entry"><span class="dle-action">[${esc(a.actionType)}]</span> ${esc(a.action)}</div>`).join('')
+          : '<div style="color:var(--fg-dim)">No recent actions</div>'
+        }
+      </div>
+    </div>
+  `;
+}
+
+function statBar(label, value, cls) {
+  return `<div class="stat-bar ${cls}">
+    <span class="stat-label">${label}</span>
+    <div class="stat-track"><div class="stat-fill" style="width:${value}%"></div></div>
+    <span class="stat-val">${value}</span>
+  </div>`;
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

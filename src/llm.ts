@@ -20,7 +20,7 @@ export class OpenRouterProvider implements LLMProvider {
     this.model = model;
   }
 
-  async generate(system: string, user: string): Promise<string> {
+  async generate(system: string, user: string, maxTokens = 512): Promise<string> {
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
@@ -28,7 +28,7 @@ export class OpenRouterProvider implements LLMProvider {
         { role: 'user', content: user },
       ],
       temperature: 0.9,
-      max_tokens: 512,
+      max_tokens: maxTokens,
     });
     return response.choices[0]?.message?.content?.trim() ?? '';
   }

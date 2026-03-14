@@ -169,7 +169,7 @@ export interface Judge {
 // ── LLM ────────────────────────────────────────────────────────────────────
 
 export interface LLMProvider {
-  generate(system: string, user: string): Promise<string>;
+  generate(system: string, user: string, maxTokens?: number): Promise<string>;
 }
 
 // ── Parsed Responses ───────────────────────────────────────────────────────

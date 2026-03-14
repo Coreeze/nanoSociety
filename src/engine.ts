@@ -7,22 +7,21 @@
 
 import type {
   LLMProvider, Participant, Team, SandboxState,
-  ScheduleBlock, SimEvent, PhaseName,
+  ScheduleBlock, SimEvent, PhaseName, RoomName,
 } from './types.js';
 import { SCHEDULE, HACKATHON_START_HOUR, TOTAL_HACKATHON_MINUTES } from './types.js';
 import * as store from './store.js';
 import {
-  parseActionResponse, parseSelfEvalResponse, parseMutationResponse,
+  parseActionResponse, parseBatchActionResponse,
+  parseSelfEvalResponse, parseMutationResponse,
   applyAction, applyTeamAction, applyStatChanges,
 } from './actions.js';
 import {
-  buildActionPrompt, buildTeamPrompt,
+  buildBatchActionPrompt, buildTeamPrompt,
   buildSelfEvalPrompt, buildMutationPrompt,
 } from './prompts.js';
-import {
-  enterFullscreen, exitFullscreen, renderFrame, buildFrame,
-} from './renderer.js';
 import type { LogEntry } from './renderer.js';
+import { broadcast, broadcastProgress, waitForStart } from './server.js';
 
 // ── Time Utilities ────────────────────────────────────────────────────────
 
@@ -62,85 +61,141 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
   const recentLogs: LogEntry[] = [];
   const statSnapshots = new Map<string, { energy: number; momentum: number; morale: number }>();
 
-  enterFullscreen();
-
   process.on('SIGINT', () => {
-    exitFullscreen();
     console.log('\nSimulation interrupted. State saved.');
     process.exit(0);
   });
 
+  // Broadcast initial state and wait for the client to press Start
+  const participants0 = store.loadAllParticipants();
+  const teams0 = store.loadAllTeams();
+  const minutes0 = tickToMinutes(sandbox.tick, sandbox.minutesPerTick);
+  const phase0 = getPhase(minutes0);
+  broadcast({
+    tick: sandbox.tick,
+    totalTicks: sandbox.totalTicks,
+    time: minutesToClock(minutes0),
+    phase: phase0.phase,
+    participants: participants0,
+    teams: teams0,
+    recentLogs: [],
+  });
+
+  console.log('  Waiting for start command from UI...');
+  await waitForStart();
+  console.log('  Simulation started!');
+
   try {
     for (let tick = sandbox.tick + 1; tick <= sandbox.totalTicks; tick++) {
+      const tickStart = Date.now();
       const minutes = tickToMinutes(tick, sandbox.minutesPerTick);
       const time = minutesToClock(minutes);
       const phase = getPhase(minutes);
 
       let participants = store.loadAllParticipants();
       let teams = store.loadAllTeams();
+      const soloCount = participants.filter(p => !p.team_id).length;
 
-      // Apply schedule constraints (force room moves)
+      console.log(`\n── TICK ${tick}/${sandbox.totalTicks} ── ${time} ── ${phase.phase} ── T:${teams.length} S:${soloCount} P:${participants.length} ──`);
+
       if (phase.forceRoom) {
+        console.log(`  Force room: ${phase.forceRoom}`);
         for (const p of participants) {
           p.room = phase.forceRoom;
           store.saveParticipant(p);
         }
       }
 
-      // ── Phase A: Solo participant actions (parallel) ─────────────
+      // ── Phase A + B run in parallel ─────────────────────────────
 
-      const solos = participants.filter(p => !p.team_id);
-      if (solos.length > 0 && phase.phase !== 'KEYNOTE') {
-        const soloPromises = solos.map(async (p) => {
-          const logs = store.readActionLog(p.id);
-          const { system, user } = buildActionPrompt(p, phase, time, participants, teams, logs);
+      broadcastProgress(`Tick ${tick}/${sandbox.totalTicks} — processing actions...`);
+
+      const phaseA = async () => {
+        const solos = participants.filter(p => !p.team_id);
+        if (solos.length === 0 || phase.phase === 'KEYNOTE') return;
+
+        const byRoom = new Map<RoomName, Participant[]>();
+        for (const p of solos) {
+          if (!byRoom.has(p.room)) byRoom.set(p.room, []);
+          byRoom.get(p.room)!.push(p);
+        }
+
+        console.log(`  Phase A: ${solos.length} solos across ${byRoom.size} rooms`);
+        broadcastProgress(`Phase A: ${solos.length} solos across ${byRoom.size} rooms`);
+
+        const phaseAStart = Date.now();
+
+        const roomPromises = Array.from(byRoom.entries()).map(async ([room, roomSolos]) => {
+          const roomStart = Date.now();
+          const logsMap = new Map<string, unknown[]>();
+          for (const p of roomSolos) {
+            logsMap.set(p.id, store.readActionLog(p.id));
+          }
+
+          const maxTokens = Math.min(4096, 150 * roomSolos.length);
 
           try {
-            const raw = await llm.generate(system, user);
-            const parsed = parseActionResponse(raw);
-            const result = applyAction(p, parsed, participants, teams, tick, time);
+            const { system, user } = buildBatchActionPrompt(
+              roomSolos, phase, time, participants, teams, logsMap,
+            );
+            const raw = await llm.generate(system, user, maxTokens);
+            const batchResults = parseBatchActionResponse(raw, roomSolos.map(p => p.name));
 
-            store.saveParticipant(p);
-            store.appendActionLog(p.id, {
-              tick, time, action_type: parsed.footer.ACTION,
-              room: p.room, narrative: parsed.narrative,
-              stats: { ...p.stats },
-            });
+            let parsed_count = 0;
+            for (const p of roomSolos) {
+              const parsed = batchResults.get(p.name);
+              if (!parsed) continue;
+              parsed_count++;
 
-            recentLogs.push({
-              name: p.name,
-              action: parsed.narrative.slice(0, 80),
-              actionType: parsed.footer.ACTION,
-              teamId: p.team_id,
-            });
+              const result = applyAction(p, parsed, participants, teams, tick, time);
 
-            if (result.newTeam) {
-              store.saveTeam(result.newTeam);
-              teams.push(result.newTeam);
+              store.saveParticipant(p);
+              store.appendActionLog(p.id, {
+                tick, time, action_type: parsed.footer.ACTION,
+                room: p.room, narrative: parsed.narrative,
+                stats: { ...p.stats },
+              });
+
+              recentLogs.push({
+                name: p.name,
+                action: parsed.narrative.slice(0, 80),
+                actionType: parsed.footer.ACTION,
+                teamId: p.team_id,
+              });
+
+              if (result.newTeam) {
+                store.saveTeam(result.newTeam);
+                teams.push(result.newTeam);
+              }
+
+              for (const evt of result.events) {
+                sandbox.events.push(evt);
+              }
             }
 
-            for (const evt of result.events) {
-              sandbox.events.push(evt);
-            }
-          } catch (err) {
-            // LLM failure — skip this participant for this tick
+            console.log(`    ✓ ${room}: ${parsed_count}/${roomSolos.length} parsed (${Date.now() - roomStart}ms)`);
+          } catch (err: any) {
+            console.log(`    ✗ ${room}: FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - roomStart}ms)`);
           }
         });
 
-        await Promise.all(soloPromises);
-      }
+        await Promise.all(roomPromises);
+        console.log(`  Phase A done (${Date.now() - phaseAStart}ms)`);
+      };
 
-      // Reload in case teams changed
-      participants = store.loadAllParticipants();
-      teams = store.loadAllTeams();
+      const phaseB = async () => {
+        if (teams.length === 0 || phase.phase === 'KEYNOTE') return;
 
-      // ── Phase B: Team groupthink (parallel) ──────────────────────
+        console.log(`  Phase B: ${teams.length} teams`);
+        broadcastProgress(`Phase B: ${teams.length} teams deciding...`);
 
-      if (teams.length > 0 && phase.phase !== 'KEYNOTE') {
+        const phaseBStart = Date.now();
+
         const teamPromises = teams.map(async (team) => {
           const members = participants.filter(p => p.team_id === team.id);
           if (members.length === 0) return;
 
+          const teamStart = Date.now();
           const logs = store.readActionLog(team.members[0]!);
           const { system, user } = buildTeamPrompt(team, members, phase, time, teams, logs);
 
@@ -169,18 +224,31 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
             for (const evt of events) {
               sandbox.events.push(evt);
             }
-          } catch (err) {
-            // LLM failure — skip this team for this tick
+
+            console.log(`    ✓ ${team.name}: ${parsed.footer.ACTION} (${Date.now() - teamStart}ms)`);
+          } catch (err: any) {
+            console.log(`    ✗ ${team.name}: FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - teamStart}ms)`);
           }
         });
 
         await Promise.all(teamPromises);
-      }
+        console.log(`  Phase B done (${Date.now() - phaseBStart}ms)`);
+      };
+
+      await Promise.all([phaseA(), phaseB()]);
+
+      participants = store.loadAllParticipants();
+      teams = store.loadAllTeams();
 
       // ── Phase C: Self-eval + mutation (every N ticks) ────────────
 
       if (tick % selfEvalInterval === 0 && tick > 0) {
+        console.log(`  Phase C: self-eval + mutation (${participants.length} participants)`);
+        broadcastProgress(`Phase C: self-eval + mutation for ${participants.length} participants...`);
         participants = store.loadAllParticipants();
+
+        const phaseCStart = Date.now();
+        let mutationCount = 0;
 
         const evalPromises = participants.map(async (p) => {
           const logs = store.readActionLog(p.id);
@@ -203,6 +271,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
             if (mutParsed.newIdentity) {
               store.archiveIdentity(p.id, tick, p.identity_md);
               p.identity_md = mutParsed.newIdentity;
+              mutationCount++;
 
               sandbox.events.push({
                 tick, time, type: 'mutation',
@@ -224,8 +293,8 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
         });
 
         await Promise.all(evalPromises);
+        console.log(`  Phase C done: ${mutationCount} mutations (${Date.now() - phaseCStart}ms)`);
 
-        // Snapshot stats for next eval comparison
         for (const p of store.loadAllParticipants()) {
           statSnapshots.set(p.id, { ...p.stats });
         }
@@ -239,19 +308,25 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
       sandbox.tick = tick;
       store.saveSandbox(sandbox);
 
-      const frame = buildFrame(
-        tick, sandbox.totalTicks, time, phase.phase,
-        participants, teams, recentLogs.slice(-10),
-      );
-      renderFrame(frame);
+      broadcast({
+        tick,
+        totalTicks: sandbox.totalTicks,
+        time,
+        phase: phase.phase,
+        participants,
+        teams,
+        recentLogs: recentLogs.slice(-30),
+      });
 
-      // Trim log buffer
       if (recentLogs.length > 50) recentLogs.splice(0, recentLogs.length - 30);
+
+      const elapsed = Date.now() - tickStart;
+      console.log(`  Tick ${tick} complete (${elapsed}ms total)`);
 
       await sleep(tickInterval);
     }
   } finally {
-    exitFullscreen();
+    // no cleanup needed
   }
 
   console.log('\n════════════════════════════════════════════════════════');

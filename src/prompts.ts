@@ -122,6 +122,80 @@ What do you do? Write 1-3 sentences in first person, then the --- footer.`;
   return { system, user };
 }
 
+// ── Batched Action Prompt (one call per room) ────────────────────────────
+
+export function buildBatchActionPrompt(
+  solosInRoom: Participant[],
+  schedule: ScheduleBlock,
+  time: string,
+  allParticipants: Participant[],
+  teams: Team[],
+  logsMap: Map<string, unknown[]>,
+): { system: string; user: string } {
+  const room = solosInRoom[0]!.room;
+
+  const system = `You are the narrator for ${solosInRoom.length} solo hackathon participants at the AGI House.
+Each person acts independently — write in first person for each one.
+
+SCHEDULE PHASE: ${schedule.phase} — ${schedule.prompt}
+Current time: ${time}
+Location: ${room} (${roomVibe(room)})
+Adjacent rooms: ${adjacentRooms(room)}
+
+Available actions (pick ONE per person):
+1. code — build project (+momentum, -energy)
+2. talk — chat with someone in the room
+3. move — go to an adjacent room
+4. form_team — create a team (pick a track 1-5)
+5. join_team — join a team with members in this room
+6. leave_team — leave current team
+7. pitch — practice or deliver demo
+8. chill — rest, eat, recharge (+energy, -momentum)
+
+RESPONSE FORMAT — for EACH participant write:
+
+[EXACT_FULL_NAME]
+1-2 sentence first-person narrative
+---
+ACTION: one of the actions above
+ROOM: current or adjacent room
+ENERGY: integer change (e.g., -8 or 5)
+MOMENTUM: integer change
+MORALE: integer change
+TARGET: person-id or team-id (if applicable)
+TEAM_NAME: name (only for form_team)
+PROJECT: project description (only for form_team)
+TRACK: track number 1-5 (only for form_team)
+
+Write one block per participant. Do NOT skip anyone.`;
+
+  const participantBlocks = solosInRoom.map(p => {
+    const logs = logsMap.get(p.id) ?? [];
+    const othersInRoom = allParticipants.filter(o => o.id !== p.id && o.room === room);
+    return `[${p.name}]
+Identity: ${p.identity_md}
+Goal: ${p.goal}
+Stats: ${formatStats(p)}
+Team: solo
+People here: ${othersInRoom.length > 0 ? othersInRoom.slice(0, 15).map(o => `${o.name}${o.team_id ? ` (${o.team_id})` : ''}`).join(', ') : 'Nobody else'}
+Recent: ${formatRecentLogs(logs, 2)}`;
+  }).join('\n\n');
+
+  const user = `PARTICIPANTS TO ACT:
+
+${participantBlocks}
+
+EXISTING TEAMS:
+${teamList(teams)}
+
+TRACKS:
+${TRACKS.join('\n')}
+
+Write one [NAME] block per participant above. Do not skip any.`;
+
+  return { system, user };
+}
+
 // ── Team Groupthink Prompt ────────────────────────────────────────────────
 
 export function buildTeamPrompt(
