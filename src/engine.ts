@@ -85,6 +85,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
     participants: participants0,
     teams: teams0,
     recentLogs: [],
+    chaosEvent: null,
   });
 
   console.log('  Waiting for start command from UI...');
@@ -97,6 +98,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
       const minutes = tickToMinutes(tick, sandbox.minutesPerTick);
       const time = minutesToClock(minutes);
       const phase = getPhase(minutes);
+      let chaosEvent: { description: string } | null = null;
 
       let participants = store.loadAllParticipants();
       let teams = store.loadAllTeams();
@@ -116,6 +118,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
       // ── Drama Event Roll ─────────────────────────────────────────
       const drama = rollDrama();
       if (drama) {
+        chaosEvent = { description: drama.description };
         console.log(`  🎲 DRAMA: ${drama.description}`);
         sandbox.events.push({ tick, time, type: 'drama', description: drama.description });
         recentLogs.push({
@@ -243,6 +246,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
         participants,
         teams,
         recentLogs: recentLogs.slice(-30),
+        chaosEvent,
       });
 
       if (recentLogs.length > 50) recentLogs.splice(0, recentLogs.length - 30);

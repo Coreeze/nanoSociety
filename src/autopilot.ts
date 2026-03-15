@@ -5,7 +5,7 @@
  */
 
 import type { Participant, Team, RoomName, PhaseName, ParsedResponse } from './types.js';
-import { ROOM_ADJACENCY } from './types.js';
+import { ROOM_ADJACENCY, TRACKS } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -22,6 +22,38 @@ function interp(t: string, v: Record<string, string>): string {
   let s = t;
   for (const [k, val] of Object.entries(v)) s = s.replaceAll(`{${k}}`, val);
   return s;
+}
+
+function stableHash(input: string): number {
+  let hash = 0;
+  for (const ch of input) {
+    hash = ((hash * 31) + ch.charCodeAt(0)) >>> 0;
+  }
+  return hash;
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+function projectIdeaFor(p: Participant): string {
+  const cleanedGoal = p.goal
+    .replace(/^build\s+/i, '')
+    .replace(/^make\s+/i, '')
+    .replace(/^create\s+/i, '')
+    .trim();
+  const idea = cleanedGoal || p.background.trim() || `${firstName(p.name)}'s hackathon build`;
+  return idea.slice(0, 72);
+}
+
+function inferTrackForParticipant(p: Participant): number {
+  const text = `${p.goal} ${p.identity_md} ${p.background} ${p.world_knowledge.join(' ')}`.toLowerCase();
+  if (/(benchmark|evaluate|evaluation|metric|measure|scor)/.test(text)) return 2;
+  if (/(self-improv|feedback|memory|learn|refin|evolv|adapt)/.test(text)) return 3;
+  if (/(game|level|asset|npc|quest|player|dev)/.test(text)) return 4;
+  if (/(openclaw|orchestrator|pipeline|module|build pipeline)/.test(text)) return 5;
+  if (/(skill|workflow|tool|reasoning|planning|coordination)/.test(text)) return 1;
+  return (stableHash(p.id) % TRACKS.length) + 1;
 }
 
 // ── Narrative Spice Bank ────────────────────────────────────────────────
@@ -63,6 +95,16 @@ const N = {
     '{name} drifts toward {room}',
     '{name} heads to {room}',
     '{name} migrates to {room} seeking better vibes',
+  ],
+  form_team: [
+    '{name} recruits {other} and starts a team',
+    '{name} teams up with {other} on the spot',
+    '{name} and {other} decide to build together',
+  ],
+  join_team: [
+    '{name} jumps onto a nearby team',
+    '{name} joins forces with a team in the room',
+    '{name} spots momentum and joins in',
   ],
   chill: [
     '{name} takes a breather, staring into space',
@@ -122,7 +164,7 @@ export function rollDrama(): DramaEvent | null {
 
 // ── Deterministic Action Selection ──────────────────────────────────────
 
-type SimpleAction = 'code' | 'talk' | 'move' | 'chill' | 'pitch';
+type SimpleAction = 'code' | 'talk' | 'move' | 'chill' | 'pitch' | 'form_team' | 'join_team';
 
 interface AutoAction {
   action: SimpleAction;
@@ -130,10 +172,64 @@ interface AutoAction {
   energy: number;
   momentum: number;
   morale: number;
+  target?: string;
+  teamName?: string;
+  project?: string;
+  track?: string;
+}
+
+function moveToAdjacentRoom(
+  room: RoomName,
+  energy = -2,
+  momentum = 1,
+  morale = 2,
+): AutoAction {
+  return {
+    action: 'move',
+    room: pick(ROOM_ADJACENCY[room]),
+    energy,
+    momentum,
+    morale,
+  };
+}
+
+function joinNearbyTeam(room: RoomName, target: string): AutoAction {
+  return {
+    action: 'join_team',
+    room,
+    energy: -2,
+    momentum: 3,
+    morale: 4,
+    target,
+  };
+}
+
+function formNearbyTeam(p: Participant, room: RoomName, partner: Participant): AutoAction {
+  const p1 = firstName(p.name);
+  const p2 = firstName(partner.name);
+  return {
+    action: 'form_team',
+    room,
+    energy: -2,
+    momentum: 4,
+    morale: 5,
+    target: partner.name,
+    teamName: `${p1} ${p2} Labs`,
+    project: `${projectIdeaFor(p)} with ${p2}`,
+    track: String(inferTrackForParticipant(p)),
+  };
 }
 
 function selectAction(p: Participant, phase: PhaseName, othersInRoom: Participant[]): AutoAction {
   const room = p.room;
+  const alone = othersInRoom.length === 0;
+  const crowded = othersInRoom.length >= 4;
+  const nearbySolos = othersInRoom.filter(o => !o.team_id);
+  const nearbyTeams = Array.from(new Map(
+    othersInRoom
+      .filter(o => o.team_id)
+      .map(o => [o.team_id!, o.team_id!]),
+  ).values());
 
   if (phase === 'KEYNOTE') {
     return { action: 'chill', room, energy: 2, momentum: 1, morale: 3 };
@@ -146,31 +242,47 @@ function selectAction(p: Participant, phase: PhaseName, othersInRoom: Participan
   if (p.team_id) {
     if (phase === 'DEMOS') return { action: 'pitch', room, energy: -4, momentum: 3, morale: 4 };
     if (phase === 'CHECKINS') {
-      return Math.random() < 0.6
-        ? { action: 'talk', room, energy: -2, momentum: 2, morale: 3 }
-        : { action: 'code', room, energy: -5, momentum: 4, morale: 2 };
+      const r = Math.random();
+      if (r < 0.3) return moveToAdjacentRoom(room, -2, 1, 2);
+      if (r < 0.65) return { action: 'talk', room, energy: -2, momentum: 2, morale: 3 };
+      return { action: 'code', room, energy: -5, momentum: 4, morale: 2 };
     }
-    return { action: 'code', room, energy: -6, momentum: 5, morale: 2 };
+
+    const r = Math.random();
+    if (crowded && r < 0.3) return moveToAdjacentRoom(room, -2, 1, 1);
+    if (r < 0.18) return moveToAdjacentRoom(room, -2, 1, 1);
+    if (r < 0.72) return { action: 'code', room, energy: -6, momentum: 5, morale: 2 };
+    if (r < 0.88) return { action: 'talk', room, energy: -2, momentum: 2, morale: 3 };
+    return { action: 'chill', room, energy: 6, momentum: -1, morale: 2 };
+  }
+
+  if (phase === 'TRACKS') {
+    const r = Math.random();
+    if (nearbyTeams.length > 0 && r < 0.5) return joinNearbyTeam(room, pick(nearbyTeams));
+    if (nearbySolos.length > 0 && r < 0.85) return formNearbyTeam(p, room, pick(nearbySolos));
+    if (alone) return moveToAdjacentRoom(room, -1, 1, 2);
+    return { action: 'talk', room, energy: -2, momentum: 2, morale: 3 };
   }
 
   if (phase === 'NETWORKING' || phase === 'DINNER') {
     const r = Math.random();
-    if (r < 0.5) return { action: 'talk', room, energy: -2, momentum: 1, morale: 4 };
-    if (r < 0.75) {
-      const nr = pick(ROOM_ADJACENCY[room]);
-      return { action: 'move', room: nr, energy: -1, momentum: 0, morale: 2 };
-    }
+    if (nearbyTeams.length > 0 && r < 0.28) return joinNearbyTeam(room, pick(nearbyTeams));
+    if (nearbySolos.length > 0 && r < 0.58) return formNearbyTeam(p, room, pick(nearbySolos));
+    if (alone || r < 0.45) return moveToAdjacentRoom(room, -1, 1, 3);
+    if (r < 0.8) return { action: 'talk', room, energy: -2, momentum: 1, morale: 4 };
     return { action: 'chill', room, energy: 6, momentum: -1, morale: 2 };
   }
 
   if (phase === 'DEMOS') return { action: 'pitch', room, energy: -3, momentum: 2, morale: 3 };
 
   const r = Math.random();
-  if (r < 0.45) return { action: 'code', room, energy: -5, momentum: 4, morale: 1 };
-  if (r < 0.7) return { action: 'talk', room, energy: -2, momentum: 1, morale: 3 };
-  if (r < 0.85) return { action: 'chill', room, energy: 6, momentum: -1, morale: 2 };
-  const nr = pick(ROOM_ADJACENCY[room]);
-  return { action: 'move', room: nr, energy: -1, momentum: 0, morale: 1 };
+  if (nearbyTeams.length > 0 && r < 0.14) return joinNearbyTeam(room, pick(nearbyTeams));
+  if (nearbySolos.length > 0 && r < 0.3) return formNearbyTeam(p, room, pick(nearbySolos));
+  if (alone || (crowded && r < 0.35)) return moveToAdjacentRoom(room, -2, 1, 2);
+  if (r < 0.36) return { action: 'code', room, energy: -5, momentum: 4, morale: 1 };
+  if (r < 0.58) return { action: 'talk', room, energy: -2, momentum: 1, morale: 3 };
+  if (r < 0.72) return { action: 'chill', room, energy: 6, momentum: -1, morale: 2 };
+  return moveToAdjacentRoom(room, -2, 1, 2);
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -180,7 +292,7 @@ export function generateAutopilotAction(
   phase: PhaseName,
   allInRoom: Participant[],
 ): ParsedResponse {
-  const { action, room, energy, momentum, morale } = selectAction(p, phase, allInRoom);
+  const { action, room, energy, momentum, morale, target, teamName, project, track } = selectAction(p, phase, allInRoom);
 
   const templates = N[action] ?? [];
   const narrative = templates.length > 0
@@ -189,7 +301,17 @@ export function generateAutopilotAction(
 
   return {
     narrative,
-    footer: { ACTION: action, ROOM: room, ENERGY: energy, MOMENTUM: momentum, MORALE: morale },
+    footer: {
+      ACTION: action,
+      ROOM: room,
+      ENERGY: energy,
+      MOMENTUM: momentum,
+      MORALE: morale,
+      TARGET: target,
+      TEAM_NAME: teamName,
+      PROJECT: project,
+      TRACK: track,
+    },
   };
 }
 

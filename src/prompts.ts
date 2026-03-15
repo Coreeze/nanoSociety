@@ -56,6 +56,9 @@ ENERGY: change as integer (e.g., -8 or 5)
 MOMENTUM: change as integer
 MORALE: change as integer
 
+Prefer movement more often than before. If moving to an adjacent room to find teammates, feedback, food, or better vibes makes sense, choose move instead of staying put.
+If you are solo and there are promising people or teams nearby, strongly prefer form_team or join_team instead of staying solo for too long.
+
 For team actions, also include:
 TARGET: person-id or team-id
 TEAM_NAME: name (only for form_team)
@@ -80,6 +83,8 @@ Goal: ${participant.goal}
 Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 
 Actions: code, talk, move, form_team, join_team, leave_team, pitch, chill
+Roam actively. Do not stay in one room unless there is a good reason.
+If you are solo during NETWORKING, TRACKS, or early BUILDING, actively seek teammates and prefer forming or joining a team.
 
 Write MAX 5 WORDS as your action, then --- footer.
 ${FOOTER_INSTRUCTIONS}`;
@@ -111,6 +116,8 @@ Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 Room: ${room} | Adjacent: ${adjacentRooms(room)}
 
 Actions: code, talk, move, form_team, join_team, leave_team, pitch, chill
+Bias toward more roaming. Participants should frequently move to adjacent rooms to meet people, scout teams, grab food, or reset.
+Strongly encourage solo participants to form teams or join nearby teams once they have plausible collaborators.
 
 For EACH participant write:
 
@@ -159,6 +166,7 @@ export function buildTeamPrompt(
 Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 
 Actions: code, talk, pitch, chill, move
+Move rooms sometimes instead of camping in one spot all day.
 
 Write MAX 5 WORDS as the team decision, then --- footer.
 ${FOOTER_INSTRUCTIONS}`;
@@ -188,6 +196,7 @@ export function buildBatchTeamPrompt(
 Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 
 Actions: code, talk, pitch, chill, move
+Bias toward more room changes than before. Teams should occasionally relocate to adjacent rooms for feedback, food, focus, or better energy.
 
 For EACH team write:
 

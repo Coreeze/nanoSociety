@@ -19,6 +19,7 @@ export interface TickPayload {
   participants: Participant[];
   teams: Team[];
   recentLogs: LogEntry[];
+  chaosEvent?: { description: string } | null;
 }
 
 const MIME_TYPES: Record<string, string> = {

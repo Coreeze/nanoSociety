@@ -50,6 +50,71 @@ function buildParticipantMap(participants: Participant[]): Map<string, Participa
   return new Map(participants.map(p => [p.id, p]));
 }
 
+function stableHash(input: string): number {
+  let hash = 0;
+  for (const ch of input) {
+    hash = ((hash * 31) + ch.charCodeAt(0)) >>> 0;
+  }
+  return hash;
+}
+
+function inferSubmissionTrack(participant: Participant): number {
+  const text = [
+    participant.goal,
+    participant.identity_md,
+    participant.background,
+    ...participant.world_knowledge,
+  ].join(' ').toLowerCase();
+
+  if (/(benchmark|evaluate|evaluation|metric|measure|scor)/.test(text)) return 2;
+  if (/(self-improv|feedback|memory|learn|refin|evolv|adapt)/.test(text)) return 3;
+  if (/(game|level|asset|npc|quest|player|dev)/.test(text)) return 4;
+  if (/(openclaw|orchestrator|pipeline|module|build pipeline)/.test(text)) return 5;
+  if (/(skill|workflow|tool|reasoning|planning|coordination)/.test(text)) return 1;
+
+  return (stableHash(participant.id) % TRACKS.length) + 1;
+}
+
+function buildSoloSubmission(participant: Participant): Team {
+  const firstName = participant.name.trim().split(/\s+/)[0] || participant.name;
+  const projectDesc = cleanDisplayText(participant.goal)
+    || cleanDisplayText(participant.background)
+    || 'A solo project submitted before the deadline.';
+
+  return {
+    id: `solo-submission-${participant.id}`,
+    name: `${participant.name} Solo`,
+    track: inferSubmissionTrack(participant),
+    project_name: `${firstName}'s Solo Build`,
+    project_desc: projectDesc,
+    identity_md: `Solo submission by ${participant.name}.`,
+    members: [participant.id],
+    founded_tick: 0,
+    pivots: [],
+  };
+}
+
+function buildSubmittedTeams(participants: Participant[], teams: Team[]): Team[] {
+  const existingTeamIds = new Set(teams.map(team => team.id));
+  const submissions = [...teams];
+
+  for (const participant of participants) {
+    if (participant.team_id && existingTeamIds.has(participant.team_id)) continue;
+    submissions.push(buildSoloSubmission(participant));
+  }
+
+  return submissions;
+}
+
+function findSubmittedTeamForParticipant(participant: Participant, teams: Team[]): Team | null {
+  if (participant.team_id) {
+    const realTeam = teams.find(candidate => candidate.id === participant.team_id);
+    if (realTeam) return realTeam;
+  }
+
+  return teams.find(candidate => candidate.members.includes(participant.id)) ?? null;
+}
+
 // ── Analysis Sections ─────────────────────────────────────────────────────
 
 function buildTimeline(events: SimEvent[]): string {
@@ -833,9 +898,7 @@ async function renderAnalysisDashboard(
   }).join('');
 
   const participantCards = participantsSorted.map(participant => {
-    const team = participant.team_id
-      ? teams.find(candidate => candidate.id === participant.team_id) ?? null
-      : null;
+    const team = findSubmittedTeamForParticipant(participant, teams);
     const searchText = [
       participant.name,
       participant.background,
@@ -1490,7 +1553,8 @@ async function renderAnalysisDashboard(
 export async function runAnalysis(llm: LLMProvider): Promise<void> {
   const sandbox = store.loadSandbox();
   const participants = store.loadAllParticipants();
-  const teams = store.loadAllTeams();
+  const recordedTeams = store.loadAllTeams();
+  const teams = buildSubmittedTeams(participants, recordedTeams);
   let history = '';
 
   console.log(header('NANOSOCIETY — HACKATHON ANALYSIS'));
@@ -1522,7 +1586,7 @@ export async function runAnalysis(llm: LLMProvider): Promise<void> {
 
   // 5. Awards
   console.log(subheader('AWARDS'));
-  const awardsStr = buildAwards(participants, teams, sandbox.events);
+  const awardsStr = buildAwards(participants, recordedTeams, sandbox.events);
   console.log(awardsStr);
 
   // 6. Winner Predictions

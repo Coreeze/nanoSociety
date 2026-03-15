@@ -50,10 +50,181 @@
         z-index: 9999;
       }
 
+      body.chaos-active #app {
+        animation: chaos-shake 180ms steps(2, end) 8;
+        filter: saturate(1.15) brightness(1.08);
+      }
+
+      #chaos-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        pointer-events: none;
+        opacity: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #chaos-overlay.active {
+        opacity: 1;
+      }
+
+      .chaos-flash {
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 2px, transparent 2px, transparent 5px),
+          linear-gradient(180deg, rgba(255, 80, 80, 0.3), rgba(255, 170, 0, 0.12) 35%, rgba(0, 255, 255, 0.08) 100%);
+        mix-blend-mode: screen;
+      }
+
+      #chaos-overlay.active .chaos-flash {
+        animation: chaos-sweep 1.7s linear forwards;
+      }
+
+      .chaos-card {
+        position: relative;
+        width: min(760px, calc(100vw - 56px));
+        border: 2px solid var(--red);
+        background: rgba(18, 5, 5, 0.9);
+        box-shadow:
+          0 0 0 1px rgba(255, 68, 68, 0.24) inset,
+          0 0 34px rgba(255, 68, 68, 0.22),
+          0 0 60px rgba(255, 170, 0, 0.14);
+        padding: 20px 24px;
+        transform: skewX(-8deg);
+        overflow: hidden;
+      }
+
+      #chaos-overlay.active .chaos-card {
+        animation: chaos-card 1.7s steps(2, end) forwards;
+      }
+
+      .chaos-card::before,
+      .chaos-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .chaos-card::before {
+        background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.05) 2px, rgba(255, 255, 255, 0.05) 4px);
+        mix-blend-mode: screen;
+      }
+
+      .chaos-card::after {
+        border: 1px solid rgba(255, 170, 0, 0.35);
+        inset: 8px;
+      }
+
+      .chaos-card > * {
+        transform: skewX(8deg);
+      }
+
+      .chaos-label {
+        color: var(--amber);
+        font-size: 11px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+      }
+
+      .chaos-title {
+        margin-top: 8px;
+        color: var(--fg-bright);
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-shadow:
+          -2px 0 rgba(255, 0, 255, 0.35),
+          2px 0 rgba(0, 255, 255, 0.35),
+          0 0 12px rgba(255, 68, 68, 0.35);
+      }
+
+      .chaos-text {
+        margin-top: 12px;
+        color: var(--white);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .chaos-subline {
+        margin-top: 14px;
+        color: var(--fg-dim);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      @keyframes chaos-shake {
+        0% {
+          transform: translate(0, 0);
+        }
+        20% {
+          transform: translate(-5px, 2px);
+        }
+        40% {
+          transform: translate(4px, -3px);
+        }
+        60% {
+          transform: translate(-4px, -2px);
+        }
+        80% {
+          transform: translate(3px, 2px);
+        }
+        100% {
+          transform: translate(0, 0);
+        }
+      }
+
+      @keyframes chaos-sweep {
+        0% {
+          opacity: 0;
+          transform: translateY(-10%);
+        }
+        10% {
+          opacity: 1;
+        }
+        70% {
+          opacity: 0.92;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(12%);
+        }
+      }
+
+      @keyframes chaos-card {
+        0% {
+          opacity: 0;
+          transform: skewX(-8deg) scale(0.92);
+        }
+        12% {
+          opacity: 1;
+          transform: skewX(-8deg) scale(1.03);
+        }
+        24% {
+          transform: skewX(-6deg) translateX(-10px);
+        }
+        38% {
+          transform: skewX(-9deg) translateX(9px);
+        }
+        70% {
+          opacity: 1;
+          transform: skewX(-8deg) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: skewX(-8deg) scale(0.98);
+        }
+      }
+
       #app {
         display: grid;
-        grid-template-columns: 1fr 320px;
-        grid-template-rows: auto 1fr 120px;
+        grid-template-columns: 1fr 680px;
+        grid-template-rows: auto 1fr;
         height: 100vh;
         gap: 0;
         overflow: hidden;
@@ -155,28 +326,12 @@
         min-height: 0;
       }
 
-      /* ── Footer log ── */
-      #log-panel {
-        grid-column: 1 / -1;
-        border-top: 1px solid var(--border);
-        background: var(--panel-bg);
-        padding: 4px 16px;
-        height: 120px;
-        min-height: 120px;
-        max-height: 120px;
-        overflow-y: auto;
-        font-size: 12px;
-      }
-
-      #log-panel .log-entry {
-        white-space: nowrap;
+      #sidebar-main {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 1px 0;
-      }
-
-      #log-panel .log-tag {
-        color: var(--fg-dim);
       }
 
       /* ── Isometric house ── */
@@ -185,6 +340,28 @@
         width: min(100%, 980px);
         aspect-ratio: 1.55;
         min-height: 0;
+        filter: drop-shadow(0 28px 34px rgba(0, 0, 0, 0.45));
+      }
+
+      .iso-scene::before,
+      .iso-scene::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .iso-scene::before {
+        background:
+          radial-gradient(circle at 50% 22%, rgba(102, 255, 102, 0.1), transparent 40%),
+          radial-gradient(circle at 50% 72%, rgba(0, 255, 255, 0.06), transparent 46%);
+        opacity: 0.85;
+      }
+
+      .iso-scene::after {
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.18)),
+          radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.22) 100%);
       }
 
       .iso-grid {
@@ -204,6 +381,16 @@
         filter: drop-shadow(0 0 6px rgba(51, 255, 51, 0.38));
       }
 
+      .iso-grid .wire.accent {
+        stroke-width: 2.2;
+        opacity: 0.98;
+      }
+
+      .iso-grid .wire.micro {
+        stroke-width: 0.9;
+        opacity: 0.26;
+      }
+
       .iso-grid .wire.dim {
         opacity: 0.42;
       }
@@ -212,6 +399,155 @@
         fill: rgba(51, 255, 51, 0.04);
         stroke: rgba(102, 255, 102, 0.18);
         stroke-width: 1;
+      }
+
+      .iso-grid .house-shadow {
+        fill: rgba(0, 0, 0, 0.34);
+        filter: blur(10px);
+      }
+
+      .iso-grid .ground-face {
+        fill: rgba(6, 20, 7, 0.92);
+        stroke: rgba(102, 255, 102, 0.1);
+      }
+
+      .iso-grid .room-top {
+        fill: rgba(40, 255, 90, 0.05);
+      }
+
+      .iso-grid .room-side-left {
+        fill: rgba(16, 70, 24, 0.18);
+        stroke: rgba(102, 255, 102, 0.16);
+      }
+
+      .iso-grid .room-side-right {
+        fill: rgba(6, 28, 11, 0.34);
+        stroke: rgba(102, 255, 102, 0.12);
+      }
+
+      .iso-grid .room-glow {
+        fill: rgba(51, 255, 102, 0.05);
+        filter: blur(14px);
+      }
+
+      .iso-grid .prop-top {
+        fill: rgba(56, 255, 122, 0.08);
+        stroke: rgba(102, 255, 102, 0.32);
+        stroke-width: 0.9;
+      }
+
+      .iso-grid .prop-left {
+        fill: rgba(14, 62, 24, 0.24);
+        stroke: rgba(102, 255, 102, 0.18);
+        stroke-width: 0.8;
+      }
+
+      .iso-grid .prop-right {
+        fill: rgba(6, 24, 10, 0.34);
+        stroke: rgba(102, 255, 102, 0.14);
+        stroke-width: 0.8;
+      }
+
+      .iso-grid .prop-line {
+        fill: none;
+        stroke: rgba(102, 255, 102, 0.28);
+        stroke-width: 0.9;
+      }
+
+      .iso-grid .prop-glow {
+        fill: rgba(102, 255, 170, 0.08);
+        filter: blur(10px);
+      }
+
+      .iso-grid .fixture-screen {
+        fill: rgba(0, 255, 255, 0.14);
+        stroke: rgba(102, 255, 255, 0.5);
+        stroke-width: 0.8;
+      }
+
+      .iso-grid .fixture-led {
+        fill: none;
+        stroke: rgba(255, 255, 102, 0.44);
+        stroke-width: 0.75;
+      }
+
+      .iso-grid .fixture-sign {
+        fill: rgba(102, 255, 180, 0.08);
+        stroke: rgba(102, 255, 180, 0.38);
+        stroke-width: 0.85;
+      }
+
+      .iso-atmosphere {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+
+      .iso-atmosphere .scan-band {
+        fill: rgba(102, 255, 140, 0.05);
+        filter: blur(8px);
+        animation: scene-scan 7s linear infinite;
+      }
+
+      .iso-atmosphere .fog {
+        fill: rgba(51, 255, 102, 0.035);
+        filter: blur(20px);
+        animation: fog-drift 10s ease-in-out infinite;
+      }
+
+      .iso-atmosphere .spark {
+        fill: rgba(102, 255, 180, 0.55);
+        animation: spark-rise 5.8s linear infinite;
+      }
+
+      .iso-atmosphere .room-beacon {
+        fill: none;
+        stroke: rgba(102, 255, 170, 0.38);
+        stroke-width: 1.1;
+        filter: drop-shadow(0 0 8px rgba(102, 255, 170, 0.22));
+        animation: beacon-pulse 3.2s ease-in-out infinite;
+      }
+
+      .iso-atmosphere .room-column {
+        fill: rgba(102, 255, 180, 0.045);
+        stroke: rgba(102, 255, 180, 0.1);
+        stroke-width: 0.8;
+        filter: blur(5px);
+        animation: beacon-pulse 3.2s ease-in-out infinite;
+      }
+
+      .iso-links {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .iso-links .team-link-glow {
+        fill: none;
+        stroke: rgba(102, 255, 200, 0.12);
+        stroke-width: 5;
+        stroke-linecap: round;
+        filter: blur(5px);
+      }
+
+      .iso-links .team-link {
+        fill: none;
+        stroke: rgba(102, 255, 200, 0.6);
+        stroke-width: 1.3;
+        stroke-linecap: round;
+        stroke-dasharray: 3 4;
+        animation: team-link-flow 2.3s linear infinite;
+      }
+
+      .iso-links .team-link-pulse {
+        fill: rgba(102, 255, 200, 0.8);
+        filter: drop-shadow(0 0 6px rgba(102, 255, 200, 0.45));
+        animation: link-pulse 2s ease-in-out infinite;
       }
 
       .iso-overlay {
@@ -231,17 +567,41 @@
         fill: rgba(0, 0, 0, 0.28);
       }
 
+      .iso-people .person-beam {
+        fill: color-mix(in srgb, currentColor 16%, transparent);
+        stroke: color-mix(in srgb, currentColor 40%, transparent);
+        stroke-width: 0.8;
+      }
+
       .iso-people .person-body {
-        fill: color-mix(in srgb, currentColor 18%, transparent);
+        fill: color-mix(in srgb, currentColor 22%, transparent);
         stroke: currentColor;
         stroke-width: 1.1;
         stroke-linejoin: round;
+      }
+
+      .iso-people .person-core {
+        fill: color-mix(in srgb, currentColor 34%, transparent);
+        stroke: currentColor;
+        stroke-width: 0.8;
+      }
+
+      .iso-people .person-back {
+        fill: rgba(0, 0, 0, 0.34);
+        stroke: color-mix(in srgb, currentColor 60%, transparent);
+        stroke-width: 0.8;
       }
 
       .iso-people .person-head {
         fill: rgba(10, 10, 10, 0.85);
         stroke: currentColor;
         stroke-width: 1.1;
+      }
+
+      .iso-people .person-visor {
+        stroke: color-mix(in srgb, currentColor 80%, white 20%);
+        stroke-width: 0.9;
+        stroke-linecap: round;
       }
 
       .iso-people .person-limb {
@@ -257,9 +617,32 @@
         stroke-width: 1;
       }
 
+      .iso-people .person-trail {
+        fill: color-mix(in srgb, currentColor 10%, transparent);
+        stroke: color-mix(in srgb, currentColor 32%, transparent);
+        stroke-width: 0.8;
+      }
+
+      .iso-people .person-orbit {
+        fill: none;
+        stroke: color-mix(in srgb, currentColor 34%, transparent);
+        stroke-width: 0.85;
+        stroke-dasharray: 1.6 1.6;
+      }
+
       .iso-people .iso-person {
         cursor: pointer;
         filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent));
+      }
+
+      .iso-people .person-shell {
+        animation: agent-float 3.2s ease-in-out infinite;
+      }
+
+      .iso-people .person-shell .person-ring,
+      .iso-people .person-shell .person-orbit,
+      .iso-people .person-shell .person-beam {
+        animation: agent-pulse 2.8s ease-in-out infinite;
       }
 
       .iso-people .iso-person.solo {
@@ -279,6 +662,110 @@
       .iso-people .iso-person.selected .person-head,
       .iso-people .iso-person.selected .person-body {
         fill: rgba(51, 255, 51, 0.16);
+      }
+
+      .iso-people .person-label {
+        fill: color-mix(in srgb, currentColor 84%, white 16%);
+        font-size: 4px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-anchor: middle;
+        paint-order: stroke;
+        stroke: rgba(0, 0, 0, 0.8);
+        stroke-width: 0.55;
+      }
+
+      @keyframes agent-float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-2.8px);
+        }
+      }
+
+      @keyframes agent-pulse {
+        0%,
+        100% {
+          opacity: 0.72;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.06);
+        }
+      }
+
+      @keyframes scene-scan {
+        0% {
+          transform: translateX(-180px) translateY(-8px);
+          opacity: 0;
+        }
+        18% {
+          opacity: 1;
+        }
+        82% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(210px) translateY(8px);
+          opacity: 0;
+        }
+      }
+
+      @keyframes beacon-pulse {
+        0%,
+        100% {
+          opacity: 0.42;
+        }
+        50% {
+          opacity: 0.95;
+        }
+      }
+
+      @keyframes fog-drift {
+        0%,
+        100% {
+          transform: translate(0, 0);
+          opacity: 0.4;
+        }
+        50% {
+          transform: translate(12px, -8px);
+          opacity: 0.72;
+        }
+      }
+
+      @keyframes spark-rise {
+        0% {
+          transform: translateY(8px);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.9;
+        }
+        100% {
+          transform: translateY(-28px);
+          opacity: 0;
+        }
+      }
+
+      @keyframes team-link-flow {
+        to {
+          stroke-dashoffset: -14;
+        }
+      }
+
+      @keyframes link-pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+          transform: scale(0.9);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2);
+        }
       }
 
       .iso-room-panel {
@@ -378,6 +865,49 @@
         display: block;
       }
 
+      #updates-panel {
+        border-right: 1px solid var(--border);
+        padding: 10px 12px;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      #updates-panel .updates-title {
+        color: var(--fg-dim);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      #updates-panel .update-entry {
+        font-size: 11px;
+        line-height: 1.45;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(26, 90, 26, 0.35);
+      }
+
+      #updates-panel .update-entry:last-child {
+        border-bottom: 0;
+      }
+
+      #updates-panel .update-entry.drama {
+        color: var(--amber);
+      }
+
+      #updates-panel .update-name {
+        color: var(--fg-bright);
+      }
+
+      #updates-panel .update-tag {
+        color: var(--fg-dim);
+      }
+
+      #updates-panel .empty-updates {
+        color: var(--fg-dim);
+        font-size: 11px;
+      }
+
       .search-item {
         padding: 4px 12px;
         cursor: pointer;
@@ -393,7 +923,7 @@
       }
 
       #detail-panel {
-        flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: 12px;
       }
@@ -661,12 +1191,23 @@
 
       <div id="sidebar">
         <div id="search-results"></div>
-        <div id="detail-panel">
-          <div class="empty-detail">Click a participant or search to inspect</div>
+        <div id="sidebar-main">
+          <div id="updates-panel"></div>
+          <div id="detail-panel">
+            <div class="empty-detail">Click a participant or search to inspect</div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div id="log-panel"></div>
+    <div id="chaos-overlay" aria-hidden="true">
+      <div class="chaos-flash"></div>
+      <div class="chaos-card">
+        <div class="chaos-label" id="chaos-label">System anomaly detected</div>
+        <div class="chaos-title">Chaos Event</div>
+        <div class="chaos-text" id="chaos-text">Stand by.</div>
+        <div class="chaos-subline">crt disturbance / venue instability / live feed degraded</div>
+      </div>
     </div>
 
     <div id="start-overlay">
@@ -727,11 +1268,47 @@
         { key: "BACK_GARDEN", label: "GARDEN", x: 11, y: 11, w: 15, h: 7, panelInset: 12 },
       ];
 
+      const ROOM_FIXTURES = {
+        KITCHEN: [
+          { x: 1.2, y: 0.9, w: 6.1, h: 0.9, height: 1.4, screen: true },
+          { x: 7.8, y: 1.1, w: 1.4, h: 1.4, height: 1.9, glow: true },
+        ],
+        BAR: [
+          { x: 11.7, y: 0.8, w: 4.4, h: 1.0, height: 1.45, led: true },
+          { x: 14.9, y: 3.0, w: 0.9, h: 0.9, height: 2.2, sign: true },
+        ],
+        OFFICE: [
+          { x: 18.2, y: 1.0, w: 2.1, h: 3.6, height: 1.2, screen: true },
+          { x: 21.3, y: 1.3, w: 2.8, h: 1.3, height: 1.35, screen: true },
+        ],
+        MAIN_ROOM: [
+          { x: 1.6, y: 6.8, w: 3.1, h: 1.5, height: 1.15, screen: true },
+          { x: 5.8, y: 7.8, w: 3.6, h: 1.5, height: 1.15, screen: true },
+          { x: 10.5, y: 8.7, w: 1.3, h: 1.3, height: 2.1, sign: true },
+        ],
+        STAIRS: [
+          { x: 15.0, y: 7.0, w: 1.1, h: 4.8, height: 0.45, led: true },
+        ],
+        BATHROOM: [
+          { x: 20.0, y: 8.0, w: 1.3, h: 1.0, height: 1.0, glow: true },
+        ],
+        FRONT_GARDEN: [
+          { x: 2.0, y: 14.0, w: 1.2, h: 1.2, height: 2.0, glow: true },
+          { x: 7.6, y: 15.1, w: 1.1, h: 1.1, height: 1.7, glow: true },
+        ],
+        BACK_GARDEN: [
+          { x: 13.0, y: 12.6, w: 1.3, h: 1.3, height: 2.2, glow: true },
+          { x: 21.5, y: 14.5, w: 1.5, h: 1.5, height: 2.5, glow: true },
+        ],
+      };
+
       let state = null;
       let selectedParticipantId = null;
       let searchQuery = "";
       let simStarted = false;
       let selectedMode = null;
+      let lastChaosSignature = "";
+      let chaosTimer = null;
 
       // ── WebSocket ──
 
@@ -797,6 +1374,7 @@
           progressEl.classList.remove("active");
           state = msg;
           render();
+          maybeTriggerChaos(msg);
         };
       }
 
@@ -816,7 +1394,7 @@
         if (!state) return;
         renderStatusBar();
         renderFloorPlan();
-        renderLogPanel();
+        renderUpdatesPanel();
         renderSearchResults();
         if (selectedParticipantId) renderDetail(selectedParticipantId);
       }
@@ -835,9 +1413,13 @@
         container.innerHTML = "";
         const scene = document.createElement("div");
         scene.className = "iso-scene";
+        const placements = computeParticipantPlacements();
 
         scene.appendChild(buildIsoGrid());
-        scene.appendChild(buildParticipantLayer());
+        scene.appendChild(buildAtmosphereLayer());
+        scene.appendChild(buildSceneryLayer());
+        scene.appendChild(buildTeamLinkLayer(placements));
+        scene.appendChild(buildParticipantLayer(placements));
 
         const overlay = document.createElement("div");
         overlay.className = "iso-overlay";
@@ -868,12 +1450,239 @@
         ];
       }
 
+      function facePointsAt(roomDef, z) {
+        return [
+          isoProject(roomDef.x, roomDef.y, z),
+          isoProject(roomDef.x + roomDef.w, roomDef.y, z),
+          isoProject(roomDef.x + roomDef.w, roomDef.y + roomDef.h, z),
+          isoProject(roomDef.x, roomDef.y + roomDef.h, z),
+        ];
+      }
+
       function pointsToPath(points) {
         return points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
       }
 
       function linePath(a, b) {
         return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+      }
+
+      function quadPath(a, b, c, d) {
+        return pointsToPath([a, b, c, d]);
+      }
+
+      function appendSvg(svg, tag, attrs) {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        for (const [key, value] of Object.entries(attrs)) {
+          node.setAttribute(key, String(value));
+        }
+        svg.appendChild(node);
+        return node;
+      }
+
+      function stableHash(value) {
+        let hash = 0;
+        const text = String(value || "");
+        for (let i = 0; i < text.length; i++) {
+          hash = ((hash * 31) + text.charCodeAt(i)) >>> 0;
+        }
+        return hash;
+      }
+
+      function drawIsoBox(svg, x, y, w, h, z, height, classPrefix) {
+        const top = [
+          isoProject(x, y, z + height),
+          isoProject(x + w, y, z + height),
+          isoProject(x + w, y + h, z + height),
+          isoProject(x, y + h, z + height),
+        ];
+        const bottom = [
+          isoProject(x, y, z),
+          isoProject(x + w, y, z),
+          isoProject(x + w, y + h, z),
+          isoProject(x, y + h, z),
+        ];
+
+        appendSvg(svg, "path", { d: quadPath(top[3], top[2], bottom[2], bottom[3]), class: `${classPrefix}-left` });
+        appendSvg(svg, "path", { d: quadPath(top[1], top[2], bottom[2], bottom[1]), class: `${classPrefix}-right` });
+        appendSvg(svg, "path", { d: pointsToPath(top), class: `${classPrefix}-top` });
+        return { top, bottom };
+      }
+
+      function buildSceneryLayer() {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("iso-grid");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        const props = [
+          [1.1, 1.1, 4.8, 1.2, 0, 1.3],
+          [6.7, 1.3, 2.3, 1.2, 0, 1.4],
+          [11.4, 1.2, 4.6, 1.3, 0, 1.25],
+          [18.1, 1.2, 2.5, 4.2, 0, 1.15],
+          [21.5, 1.7, 1.8, 1.8, 0, 1.5],
+          [2.0, 7.0, 3.2, 1.6, 0, 1.15],
+          [6.4, 7.8, 3.4, 1.6, 0, 1.15],
+          [10.6, 8.4, 1.8, 1.4, 0, 1.25],
+          [15.0, 7.0, 1.3, 4.8, 0, 0.45],
+          [20.1, 8.2, 1.6, 1.1, 0, 1.0],
+          [2.1, 14.0, 1.4, 1.4, 0, 1.9],
+          [8.0, 15.3, 1.3, 1.3, 0, 1.6],
+          [13.2, 12.7, 1.6, 1.6, 0, 2.0],
+          [22.0, 14.7, 1.7, 1.7, 0, 2.2],
+        ];
+
+        for (const [x, y, w, h, z, height] of props) {
+          const box = drawIsoBox(svg, x, y, w, h, z, height, "prop");
+          appendSvg(svg, "path", {
+            d: linePath(
+              { x: (box.top[0].x + box.top[2].x) / 2, y: (box.top[0].y + box.top[2].y) / 2 },
+              { x: (box.top[1].x + box.top[3].x) / 2, y: (box.top[1].y + box.top[3].y) / 2 }
+            ),
+            class: "prop-line",
+          });
+        }
+
+        for (const [roomKey, fixtures] of Object.entries(ROOM_FIXTURES)) {
+          for (const fixture of fixtures) {
+            const box = drawIsoBox(svg, fixture.x, fixture.y, fixture.w, fixture.h, 0, fixture.height, "prop");
+            const center = {
+              x: (box.top[0].x + box.top[2].x) / 2,
+              y: (box.top[0].y + box.top[2].y) / 2,
+            };
+
+            if (fixture.glow) {
+              appendSvg(svg, "ellipse", {
+                cx: center.x,
+                cy: center.y + 2,
+                rx: Math.max(8, fixture.w * 8),
+                ry: Math.max(4, fixture.h * 3),
+                class: "prop-glow",
+              });
+            }
+
+            if (fixture.screen) {
+              const screen = [
+                {
+                  x: box.top[0].x + (box.top[1].x - box.top[0].x) * 0.2,
+                  y: box.top[0].y + (box.top[1].y - box.top[0].y) * 0.2,
+                },
+                {
+                  x: box.top[0].x + (box.top[1].x - box.top[0].x) * 0.8,
+                  y: box.top[0].y + (box.top[1].y - box.top[0].y) * 0.8,
+                },
+                {
+                  x: box.top[3].x + (box.top[2].x - box.top[3].x) * 0.8,
+                  y: box.top[3].y + (box.top[2].y - box.top[3].y) * 0.8,
+                },
+                {
+                  x: box.top[3].x + (box.top[2].x - box.top[3].x) * 0.2,
+                  y: box.top[3].y + (box.top[2].y - box.top[3].y) * 0.2,
+                },
+              ];
+              appendSvg(svg, "path", { d: pointsToPath(screen), class: "fixture-screen" });
+            }
+
+            if (fixture.led) {
+              appendSvg(svg, "path", {
+                d: linePath(
+                  { x: box.top[0].x, y: box.top[0].y },
+                  { x: box.top[2].x, y: box.top[2].y }
+                ),
+                class: "fixture-led",
+              });
+              appendSvg(svg, "path", {
+                d: linePath(
+                  { x: box.top[1].x, y: box.top[1].y },
+                  { x: box.top[3].x, y: box.top[3].y }
+                ),
+                class: "fixture-led",
+              });
+            }
+
+            if (fixture.sign) {
+              appendSvg(svg, "ellipse", {
+                cx: center.x,
+                cy: center.y - fixture.height * 18,
+                rx: 9,
+                ry: 4.5,
+                class: "fixture-sign",
+              });
+            }
+          }
+        }
+
+        return svg;
+      }
+
+      function buildAtmosphereLayer() {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("iso-atmosphere");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        appendSvg(svg, "ellipse", {
+          cx: ISO.width * 0.5,
+          cy: ISO.height * 0.62,
+          rx: 300,
+          ry: 86,
+          class: "fog",
+        });
+        appendSvg(svg, "ellipse", {
+          cx: ISO.width * 0.38,
+          cy: ISO.height * 0.44,
+          rx: 180,
+          ry: 58,
+          class: "fog",
+          style: "animation-delay:-3s",
+        });
+
+        const scan = [
+          { x: 180, y: 250 },
+          { x: 820, y: 330 },
+          { x: 820, y: 352 },
+          { x: 180, y: 272 },
+        ];
+        appendSvg(svg, "path", { d: pointsToPath(scan), class: "scan-band" });
+
+        for (const [index, roomDef] of ROOM_LAYOUT.entries()) {
+          const center = isoProject(roomDef.x + roomDef.w / 2, roomDef.y + roomDef.h / 2, ISO.wallHeight);
+          appendSvg(svg, "ellipse", {
+            cx: center.x,
+            cy: center.y - 6,
+            rx: Math.max(10, roomDef.w * 1.5),
+            ry: Math.max(5, roomDef.h * 0.7),
+            class: "room-beacon",
+            style: `animation-delay:-${index * 0.24}s`,
+          });
+
+          const column = [
+            { x: center.x - 6, y: center.y - 6 },
+            { x: center.x + 6, y: center.y - 6 },
+            { x: center.x + 3, y: center.y - 90 },
+            { x: center.x - 3, y: center.y - 90 },
+          ];
+          appendSvg(svg, "path", {
+            d: pointsToPath(column),
+            class: "room-column",
+            style: `animation-delay:-${index * 0.24}s`,
+          });
+        }
+
+        const sparkCount = 22;
+        for (let i = 0; i < sparkCount; i++) {
+          const sx = 150 + ((i * 47) % 660);
+          const sy = 180 + ((i * 59) % 240);
+          appendSvg(svg, "circle", {
+            cx: sx,
+            cy: sy,
+            r: 1.4 + (i % 3) * 0.45,
+            class: "spark",
+            style: `animation-delay:-${(i % 7) * 0.7}s; animation-duration:${4.8 + (i % 5) * 0.45}s`,
+          });
+        }
+
+        return svg;
       }
 
       function buildIsoGrid() {
@@ -897,33 +1706,63 @@
           isoProject(house.x, house.y + house.h, ISO.wallHeight),
         ];
 
-        const floorFace = document.createElementNS(svgNS, "path");
-        floorFace.setAttribute("d", pointsToPath(floor));
-        floorFace.setAttribute("class", "face");
-        svg.appendChild(floorFace);
+        appendSvg(svg, "ellipse", {
+          cx: (floor[0].x + floor[2].x) / 2,
+          cy: floor[2].y + 30,
+          rx: 280,
+          ry: 92,
+          class: "house-shadow",
+        });
 
-        for (const roomDef of ROOM_LAYOUT) {
-          const face = document.createElementNS(svgNS, "path");
-          face.setAttribute("d", pointsToPath(topFacePoints(roomDef)));
-          face.setAttribute("class", "face");
-          svg.appendChild(face);
+        appendSvg(svg, "path", { d: pointsToPath(floor), class: "face ground-face" });
+
+        for (let gx = 1; gx < house.w; gx += 1) {
+          appendSvg(svg, "path", {
+            d: linePath(isoProject(gx, 0, 0), isoProject(gx, house.h, 0)),
+            class: "wire micro",
+          });
         }
 
-        const outerTop = document.createElementNS(svgNS, "path");
-        outerTop.setAttribute("d", pointsToPath(rim));
-        outerTop.setAttribute("class", "wire");
-        svg.appendChild(outerTop);
+        for (let gy = 1; gy < house.h; gy += 1) {
+          appendSvg(svg, "path", {
+            d: linePath(isoProject(0, gy, 0), isoProject(house.w, gy, 0)),
+            class: "wire micro",
+          });
+        }
 
-        const outerBottom = document.createElementNS(svgNS, "path");
-        outerBottom.setAttribute("d", pointsToPath(floor));
-        outerBottom.setAttribute("class", "wire dim");
-        svg.appendChild(outerBottom);
+        for (const [roomIndex, roomDef] of ROOM_LAYOUT.entries()) {
+          const top = topFacePoints(roomDef);
+          const floorCorners = facePointsAt(roomDef, 0);
+
+          appendSvg(svg, "path", {
+            d: quadPath(top[3], top[2], floorCorners[2], floorCorners[3]),
+            class: "face room-side-left",
+          });
+          appendSvg(svg, "path", {
+            d: quadPath(top[1], top[2], floorCorners[2], floorCorners[1]),
+            class: "face room-side-right",
+          });
+          appendSvg(svg, "path", {
+            d: pointsToPath(top),
+            class: "face room-top",
+            style: `fill-opacity:${0.04 + (roomIndex % 3) * 0.02}`,
+          });
+
+          const center = isoProject(roomDef.x + roomDef.w / 2, roomDef.y + roomDef.h / 2, ISO.wallHeight);
+          appendSvg(svg, "ellipse", {
+            cx: center.x,
+            cy: center.y + 10,
+            rx: Math.max(28, roomDef.w * 10),
+            ry: Math.max(10, roomDef.h * 3.2),
+            class: "room-glow",
+          });
+        }
+
+        appendSvg(svg, "path", { d: pointsToPath(rim), class: "wire accent" });
+        appendSvg(svg, "path", { d: pointsToPath(floor), class: "wire dim" });
 
         for (let i = 0; i < rim.length; i++) {
-          const edge = document.createElementNS(svgNS, "path");
-          edge.setAttribute("d", linePath(rim[i], floor[i]));
-          edge.setAttribute("class", "wire");
-          svg.appendChild(edge);
+          appendSvg(svg, "path", { d: linePath(rim[i], floor[i]), class: "wire accent" });
         }
 
         for (const roomDef of ROOM_LAYOUT) {
@@ -935,29 +1774,37 @@
             isoProject(roomDef.x, roomDef.y + roomDef.h, 0),
           ];
 
-          const topPath = document.createElementNS(svgNS, "path");
-          topPath.setAttribute("d", pointsToPath(top));
-          topPath.setAttribute("class", "wire");
-          svg.appendChild(topPath);
+          appendSvg(svg, "path", { d: pointsToPath(top), class: "wire" });
+
+          for (let x = 1; x < roomDef.w; x += 1) {
+            appendSvg(svg, "path", {
+              d: linePath(
+                isoProject(roomDef.x + x, roomDef.y, ISO.wallHeight),
+                isoProject(roomDef.x + x, roomDef.y + roomDef.h, ISO.wallHeight)
+              ),
+              class: "wire micro",
+            });
+          }
+
+          for (let y = 1; y < roomDef.h; y += 1) {
+            appendSvg(svg, "path", {
+              d: linePath(
+                isoProject(roomDef.x, roomDef.y + y, ISO.wallHeight),
+                isoProject(roomDef.x + roomDef.w, roomDef.y + y, ISO.wallHeight)
+              ),
+              class: "wire micro",
+            });
+          }
 
           for (let i = 0; i < top.length; i++) {
-            const column = document.createElementNS(svgNS, "path");
-            column.setAttribute("d", linePath(top[i], floorCorners[i]));
-            column.setAttribute("class", "wire");
-            svg.appendChild(column);
+            appendSvg(svg, "path", { d: linePath(top[i], floorCorners[i]), class: "wire" });
           }
         }
 
         return svg;
       }
 
-      function buildParticipantLayer() {
-        const svgNS = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(svgNS, "svg");
-        svg.classList.add("iso-people");
-        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
-        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
+      function computeParticipantPlacements() {
         const placements = [];
         for (const roomDef of ROOM_LAYOUT) {
           const roomKeys = roomDef.mergeKeys || [roomDef.key];
@@ -972,11 +1819,60 @@
             if (!anchor) continue;
             const participant = participants[i];
             const ground = isoProject(anchor.x, anchor.y, 0);
-            placements.push({ participant, ground, scale: anchor.scale });
+            placements.push({ participant, ground, scale: anchor.scale, roomKey: roomDef.key });
           }
         }
 
         placements.sort((a, b) => a.ground.y - b.ground.y);
+        return placements;
+      }
+
+      function buildTeamLinkLayer(placements) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("iso-links");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        const grouped = new Map();
+        for (const placement of placements) {
+          const teamId = placement.participant.team_id;
+          if (!teamId) continue;
+          const key = `${teamId}:${placement.roomKey}`;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(placement);
+        }
+
+        for (const group of grouped.values()) {
+          if (group.length < 2) continue;
+          const sorted = group.slice().sort((a, b) => a.ground.x - b.ground.x);
+          for (let i = 0; i < sorted.length - 1; i++) {
+            const a = sorted[i].ground;
+            const b = sorted[i + 1].ground;
+            const midX = (a.x + b.x) / 2;
+            const midY = Math.min(a.y, b.y) - 12;
+            const d = `M ${a.x} ${a.y - 8} Q ${midX} ${midY} ${b.x} ${b.y - 8}`;
+
+            appendSvg(svg, "path", { d, class: "team-link-glow" });
+            appendSvg(svg, "path", { d, class: "team-link" });
+            appendSvg(svg, "circle", {
+              cx: midX,
+              cy: midY,
+              r: 2.1,
+              class: "team-link-pulse",
+              style: `animation-delay:-${i * 0.25}s`,
+            });
+          }
+        }
+
+        return svg;
+      }
+
+      function buildParticipantLayer(placements) {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.classList.add("iso-people");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
         for (const placement of placements) {
           svg.appendChild(buildParticipantGlyph(placement.participant, placement));
@@ -1016,12 +1912,22 @@
       function buildParticipantGlyph(participant, placement) {
         const svgNS = "http://www.w3.org/2000/svg";
         const g = document.createElementNS(svgNS, "g");
+        const shell = document.createElementNS(svgNS, "g");
         const colorClass = participant.team_id ? getTeamColorClass(participant.team_id) : "solo";
-        const scale = placement.scale || 1;
+        const seed = stableHash(participant.id);
+        const scaleBoost = 0.92 + Math.min(0.2, (participant.stats.momentum || 0) / 280);
+        const scale = (placement.scale || 1) * scaleBoost;
+        const lean = ((seed % 5) - 2) * 0.34;
+        const armLift = 8.2 + ((seed >> 2) % 4) * 0.5;
+        const stride = 2.1 + ((seed >> 4) % 5) * 0.22;
+        const badge = getInitials(participant.name);
 
         g.setAttribute("transform", `translate(${placement.ground.x} ${placement.ground.y}) scale(${scale})`);
         g.setAttribute("class", `iso-person ${colorClass}`);
         g.dataset.pid = participant.id;
+        shell.setAttribute("class", "person-shell");
+        shell.style.animationDelay = `-${(seed % 17) / 6}s`;
+        shell.style.animationDuration = `${2.7 + (seed % 7) * 0.22}s`;
 
         if (participant.id === selectedParticipantId) {
           g.classList.add("selected");
@@ -1037,14 +1943,36 @@
         const title = document.createElementNS(svgNS, "title");
         title.textContent = participant.name;
         g.appendChild(title);
+        g.appendChild(shell);
+
+        const trail = document.createElementNS(svgNS, "path");
+        trail.setAttribute("class", "person-trail");
+        trail.setAttribute("d", `M ${-5.4 - lean} 1.5 Q 0 ${4.4 + (seed % 3)} ${5.2 - lean} 1.4 L ${4.1 - lean} 2.7 Q 0 ${4.8 + (seed % 2)} ${-4.3 - lean} 2.6 Z`);
+        shell.appendChild(trail);
+
+        const beam = document.createElementNS(svgNS, "ellipse");
+        beam.setAttribute("class", "person-beam");
+        beam.setAttribute("cx", "0");
+        beam.setAttribute("cy", "0.8");
+        beam.setAttribute("rx", String(5.4 + Math.min(2, (participant.stats.morale || 0) / 35)));
+        beam.setAttribute("ry", "2.9");
+        shell.appendChild(beam);
 
         const ring = document.createElementNS(svgNS, "ellipse");
         ring.setAttribute("class", "person-ring");
         ring.setAttribute("cx", "0");
         ring.setAttribute("cy", "0");
-        ring.setAttribute("rx", "7");
-        ring.setAttribute("ry", "3.6");
-        g.appendChild(ring);
+        ring.setAttribute("rx", "7.8");
+        ring.setAttribute("ry", "3.9");
+        shell.appendChild(ring);
+
+        const orbit = document.createElementNS(svgNS, "ellipse");
+        orbit.setAttribute("class", "person-orbit");
+        orbit.setAttribute("cx", "0");
+        orbit.setAttribute("cy", "-7.8");
+        orbit.setAttribute("rx", String(3.6 + (seed % 3) * 0.4));
+        orbit.setAttribute("ry", "1.3");
+        shell.appendChild(orbit);
 
         const shadow = document.createElementNS(svgNS, "ellipse");
         shadow.setAttribute("class", "person-shadow");
@@ -1052,29 +1980,51 @@
         shadow.setAttribute("cy", "1.2");
         shadow.setAttribute("rx", "4.8");
         shadow.setAttribute("ry", "2.5");
-        g.appendChild(shadow);
+        shell.appendChild(shadow);
+
+        const back = document.createElementNS(svgNS, "path");
+        back.setAttribute("class", "person-back");
+        back.setAttribute("d", "M -1.9 -6.8 L 1.8 -7.4 L 1.7 -11.4 L -1.6 -10.7 Z");
+        shell.appendChild(back);
 
         const body = document.createElementNS(svgNS, "path");
         body.setAttribute("class", "person-body");
-        body.setAttribute("d", "M -2.6 -2.2 L 0 -4.4 L 2.6 -2.2 L 2.1 -10.4 L 0 -13.2 L -2.1 -10.4 Z");
-        g.appendChild(body);
+        body.setAttribute("d", `M ${-2.8 - lean} -2.2 L 0 -4.8 L ${2.8 - lean} -2.2 L 2.3 -10.6 L 0 -13.6 L -2.3 -10.6 Z`);
+        shell.appendChild(body);
+
+        const core = document.createElementNS(svgNS, "path");
+        core.setAttribute("class", "person-core");
+        core.setAttribute("d", "M 0 -6.5 L 1.2 -8.1 L 0 -9.7 L -1.2 -8.1 Z");
+        shell.appendChild(core);
 
         const head = document.createElementNS(svgNS, "circle");
         head.setAttribute("class", "person-head");
         head.setAttribute("cx", "0");
         head.setAttribute("cy", "-16.3");
         head.setAttribute("r", "2.7");
-        g.appendChild(head);
+        shell.appendChild(head);
+
+        const visor = document.createElementNS(svgNS, "path");
+        visor.setAttribute("class", "person-visor");
+        visor.setAttribute("d", "M -1.5 -16.5 L 1.5 -16.5");
+        shell.appendChild(visor);
 
         const arms = document.createElementNS(svgNS, "path");
         arms.setAttribute("class", "person-limb");
-        arms.setAttribute("d", "M -4.1 -8.6 L 0 -10.1 L 4.1 -8.6");
-        g.appendChild(arms);
+        arms.setAttribute("d", `M -4.5 -${armLift} L 0 -10.2 L 4.5 -${armLift - 0.5}`);
+        shell.appendChild(arms);
 
         const legs = document.createElementNS(svgNS, "path");
         legs.setAttribute("class", "person-limb");
-        legs.setAttribute("d", "M -1.2 -2.4 L -2.8 1.8 M 1.2 -2.4 L 2.8 1.8");
-        g.appendChild(legs);
+        legs.setAttribute("d", `M -1.1 -2.6 L -${stride} 1.8 M 1.1 -2.6 L ${stride} 1.6`);
+        shell.appendChild(legs);
+
+        const label = document.createElementNS(svgNS, "text");
+        label.setAttribute("class", "person-label");
+        label.setAttribute("x", "0");
+        label.setAttribute("y", "7.8");
+        label.textContent = badge;
+        shell.appendChild(label);
 
         g.addEventListener("click", () => selectParticipant(participant.id));
         return g;
@@ -1153,6 +2103,9 @@
         for (const entry of logs) {
           const d = document.createElement("div");
           d.className = "log-entry";
+          if (entry.actionType === "drama") {
+            d.classList.add("drama");
+          }
 
           const cc = entry.teamId ? getTeamColorClass(entry.teamId) : "";
           const nameSpan = document.createElement("span");
@@ -1170,6 +2123,70 @@
         }
 
         panel.scrollTop = panel.scrollHeight;
+      }
+
+      function renderUpdatesPanel() {
+        const panel = document.getElementById("updates-panel");
+        panel.innerHTML = '<div class="updates-title">Live Updates</div>';
+
+        const logs = state.recentLogs.slice(-10).reverse();
+        if (logs.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-updates";
+          empty.textContent = "Waiting for first updates...";
+          panel.appendChild(empty);
+          return;
+        }
+
+        for (const entry of logs) {
+          const row = document.createElement("div");
+          row.className = "update-entry";
+          if (entry.actionType === "drama") {
+            row.classList.add("drama");
+          }
+
+          const cc = entry.teamId ? getTeamColorClass(entry.teamId) : "";
+          row.innerHTML = `<span class="update-name ${cc}">${esc(entry.name)}</span> ${esc(entry.action.slice(0, 72))} <span class="update-tag">[${esc(entry.actionType)}]</span>`;
+          panel.appendChild(row);
+        }
+      }
+
+      function maybeTriggerChaos(msg) {
+        if (!msg || !msg.chaosEvent || !msg.chaosEvent.description) return;
+        const signature = `${msg.tick}:${msg.chaosEvent.description}`;
+        if (signature === lastChaosSignature) return;
+        lastChaosSignature = signature;
+        triggerChaosOverlay(msg.chaosEvent.description);
+      }
+
+      function triggerChaosOverlay(description) {
+        const overlay = document.getElementById("chaos-overlay");
+        const label = document.getElementById("chaos-label");
+        const text = document.getElementById("chaos-text");
+        const labels = [
+          "Signal corruption spike",
+          "Venue anomaly detected",
+          "CRT disturbance live",
+          "Hackathon chaos burst",
+        ];
+        const hash = String(description)
+          .split("")
+          .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+
+        label.textContent = labels[hash % labels.length];
+        text.textContent = description;
+
+        overlay.classList.remove("active");
+        document.body.classList.remove("chaos-active");
+        void overlay.offsetWidth;
+        overlay.classList.add("active");
+        document.body.classList.add("chaos-active");
+
+        clearTimeout(chaosTimer);
+        chaosTimer = setTimeout(() => {
+          overlay.classList.remove("active");
+          document.body.classList.remove("chaos-active");
+        }, 1800);
       }
 
       // ── Search ──
