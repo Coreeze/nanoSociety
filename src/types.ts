@@ -212,3 +212,19 @@ export interface ParsedMutation {
   changes: string;
   newIdentity: string;
 }
+
+export interface ParsedEvalMutation {
+  narrative: string;
+  progress: string;
+  learnings: string[];
+  changes: string;
+  newIdentity: string;
+}
+
+export interface EvalLogEntry {
+  tick: number;
+  progress: string;
+  learnings: string[];
+  changes: string;
+  stats: { energy: number; momentum: number; morale: number };
+}

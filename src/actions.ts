@@ -6,7 +6,7 @@
 
 import type {
   Participant, Team, ParsedFooter, ParsedResponse, ParsedSelfEval,
-  ParsedMutation, ActionType, RoomName, SimEvent,
+  ParsedMutation, ParsedEvalMutation, ActionType, RoomName, SimEvent,
 } from './types.js';
 import { ROOM_ADJACENCY, ROOM_NAMES } from './types.js';
 import * as store from './store.js';
@@ -89,6 +89,22 @@ export function parseMutationResponse(raw: string): ParsedMutation {
   };
 }
 
+export function parseSelfEvalAndMutationResponse(raw: string): ParsedEvalMutation {
+  const { narrative, footerLines } = splitResponse(raw);
+  const kv = parseKeyValue(footerLines);
+
+  return {
+    narrative,
+    progress: kv['PROGRESS'] ?? 'stagnant',
+    learnings: (kv['LEARNINGS'] ?? '')
+      .split('|')
+      .map(l => l.trim())
+      .filter(Boolean),
+    changes: kv['CHANGES'] ?? '',
+    newIdentity: kv['NEW_IDENTITY'] ?? '',
+  };
+}
+
 export function parseSeedResponse(raw: string): { identity: string; goal: string } {
   const { footerLines } = splitResponse(raw);
   const kv = parseKeyValue(footerLines);
@@ -96,6 +112,54 @@ export function parseSeedResponse(raw: string): { identity: string; goal: string
     identity: kv['IDENTITY'] ?? 'A hackathon participant ready to build something great.',
     goal: kv['GOAL'] ?? 'Build something impressive and win.',
   };
+}
+
+export function parseBatchSeedResponse(
+  raw: string,
+  participantNames: string[],
+): Map<string, { identity: string; goal: string }> {
+  const results = new Map<string, { identity: string; goal: string }>();
+
+  const namePattern = participantNames
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const regex = new RegExp(`\\[\\s*(${namePattern})\\s*\\]`, 'gi');
+
+  const markers: { name: string; index: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const matchedName = participantNames.find(
+      n => n.toLowerCase() === match![1]!.toLowerCase()
+    );
+    if (matchedName) {
+      markers.push({ name: matchedName, index: match.index });
+    }
+  }
+
+  for (let i = 0; i < markers.length; i++) {
+    const start = markers[i]!.index + markers[i]!.name.length + 2;
+    const end = i + 1 < markers.length ? markers[i + 1]!.index : raw.length;
+    const block = raw.slice(start, end).trim();
+
+    try {
+      const parsed = parseSeedResponse(block);
+      results.set(markers[i]!.name, parsed);
+    } catch {
+      // skip malformed block
+    }
+  }
+
+  const defaultSeed = {
+    identity: 'A hackathon participant ready to build something great.',
+    goal: 'Build something impressive and win.',
+  };
+  for (const name of participantNames) {
+    if (!results.has(name)) {
+      results.set(name, defaultSeed);
+    }
+  }
+
+  return results;
 }
 
 // ── Batch Parsing ────────────────────────────────────────────────────────
@@ -147,6 +211,113 @@ export function parseBatchActionResponse(
           MOMENTUM: 0,
           MORALE: 0,
         },
+      });
+    }
+  }
+
+  return results;
+}
+
+// ── Batch Team Parsing ────────────────────────────────────────────────────
+
+export function parseBatchTeamResponse(
+  raw: string,
+  teamNames: string[],
+): Map<string, ParsedResponse> {
+  const results = new Map<string, ParsedResponse>();
+
+  const namePattern = teamNames
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const regex = new RegExp(`\\[\\s*(${namePattern})\\s*\\]`, 'gi');
+
+  const markers: { name: string; index: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const matchedName = teamNames.find(
+      n => n.toLowerCase() === match![1]!.toLowerCase()
+    );
+    if (matchedName) {
+      markers.push({ name: matchedName, index: match.index });
+    }
+  }
+
+  for (let i = 0; i < markers.length; i++) {
+    const start = markers[i]!.index + markers[i]!.name.length + 2;
+    const end = i + 1 < markers.length ? markers[i + 1]!.index : raw.length;
+    const block = raw.slice(start, end).trim();
+
+    try {
+      const parsed = parseActionResponse(block);
+      results.set(markers[i]!.name, parsed);
+    } catch {
+      // skip malformed block
+    }
+  }
+
+  for (const name of teamNames) {
+    if (!results.has(name)) {
+      results.set(name, {
+        narrative: '',
+        footer: {
+          ACTION: 'code',
+          ROOM: 'MAIN_ROOM',
+          ENERGY: -5,
+          MOMENTUM: 5,
+          MORALE: 0,
+        },
+      });
+    }
+  }
+
+  return results;
+}
+
+// ── Batch Self-Eval Parsing ──────────────────────────────────────────────
+
+export function parseBatchSelfEvalResponse(
+  raw: string,
+  participantNames: string[],
+): Map<string, ParsedEvalMutation> {
+  const results = new Map<string, ParsedEvalMutation>();
+
+  const namePattern = participantNames
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const regex = new RegExp(`\\[\\s*(${namePattern})\\s*\\]`, 'gi');
+
+  const markers: { name: string; index: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const matchedName = participantNames.find(
+      n => n.toLowerCase() === match![1]!.toLowerCase()
+    );
+    if (matchedName) {
+      markers.push({ name: matchedName, index: match.index });
+    }
+  }
+
+  for (let i = 0; i < markers.length; i++) {
+    const start = markers[i]!.index + markers[i]!.name.length + 2;
+    const end = i + 1 < markers.length ? markers[i + 1]!.index : raw.length;
+    const block = raw.slice(start, end).trim();
+
+    try {
+      const parsed = parseSelfEvalAndMutationResponse(block);
+      results.set(markers[i]!.name, parsed);
+    } catch {
+      // skip malformed block
+    }
+  }
+
+  for (const name of participantNames) {
+    if (!results.has(name)) {
+      results.set(name, {
+        narrative: '',
+        progress: 'stagnant',
+        learnings: [],
+        changes: '',
+        newIdentity: '',
       });
     }
   }

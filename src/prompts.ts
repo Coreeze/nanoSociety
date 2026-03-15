@@ -22,9 +22,9 @@ function roomVibe(room: RoomName): string {
   return ROOM_VIBES[room];
 }
 
-function formatKnowledge(p: Participant): string {
+function formatKnowledge(p: Participant, limit = 5): string {
   if (p.world_knowledge.length === 0) return 'None yet.';
-  return p.world_knowledge.slice(-10).join('\n- ');
+  return p.world_knowledge.slice(-limit).join('\n- ');
 }
 
 function formatRecentLogs(logs: unknown[], count: number): string {
@@ -75,49 +75,21 @@ export function buildActionPrompt(
 ): { system: string; user: string } {
   const sameRoom = allParticipants.filter(p => p.id !== participant.id && p.room === participant.room);
 
-  const system = `You are ${participant.name} at a hackathon at the AGI House.
-Your identity: ${participant.identity_md}
-Your goal: ${participant.goal}
+  const system = `You are ${participant.name}. Identity: ${participant.identity_md}
+Goal: ${participant.goal}
+Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 
-You are a real person with agency. Act in character. Be specific. Be human.
+Actions: code, talk, move, form_team, join_team, leave_team, pitch, chill
 
-SCHEDULE PHASE: ${schedule.phase} — ${schedule.prompt}
-Current time: ${time}
-
-You can do ONE action per turn:
-1. code — build your project (+momentum, -energy)
-2. talk — chat with someone in your room
-3. move — go to an adjacent room
-4. form_team — create a team with someone here (pick a track 1-5)
-5. join_team — join a team that has members in your room
-6. leave_team — leave your current team
-7. pitch — practice or deliver your demo
-8. chill — rest, eat, recharge (+energy, -momentum)
-
+Write MAX 5 WORDS as your action, then --- footer.
 ${FOOTER_INSTRUCTIONS}`;
 
-  const user = `CURRENT STATE:
-Room: ${participant.room} (${roomVibe(participant.room)})
-Adjacent rooms: ${adjacentRooms(participant.room)}
-Stats: ${formatStats(participant)}
-Team: ${participant.team_id ?? 'solo'}
+  const user = `Room: ${participant.room} | Adjacent: ${adjacentRooms(participant.room)}
+Stats: ${formatStats(participant)} | Team: ${participant.team_id ?? 'solo'}
+Here: ${sameRoom.length > 0 ? sameRoom.map(p => p.name).join(', ') : 'nobody'}
+Teams: ${teamList(teams)}
 
-PEOPLE IN YOUR ROOM:
-${sameRoom.length > 0 ? sameRoom.map(p => `- ${p.name}${p.team_id ? ` (${p.team_id})` : ' (solo)'}`).join('\n') : 'Nobody else here.'}
-
-EXISTING TEAMS:
-${teamList(teams)}
-
-THINGS YOU KNOW:
-- ${formatKnowledge(participant)}
-
-YOUR RECENT ACTIONS:
-${formatRecentLogs(recentLogs, 3)}
-
-TRACKS:
-${TRACKS.join('\n')}
-
-What do you do? Write 1-3 sentences in first person, then the --- footer.`;
+Max 5 words, then --- footer.`;
 
   return { system, user };
 }
@@ -134,64 +106,41 @@ export function buildBatchActionPrompt(
 ): { system: string; user: string } {
   const room = solosInRoom[0]!.room;
 
-  const system = `You are the narrator for ${solosInRoom.length} solo hackathon participants at the AGI House.
-Each person acts independently — write in first person for each one.
+  const system = `Narrator for ${solosInRoom.length} solo participants.
+Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
+Room: ${room} | Adjacent: ${adjacentRooms(room)}
 
-SCHEDULE PHASE: ${schedule.phase} — ${schedule.prompt}
-Current time: ${time}
-Location: ${room} (${roomVibe(room)})
-Adjacent rooms: ${adjacentRooms(room)}
+Actions: code, talk, move, form_team, join_team, leave_team, pitch, chill
 
-Available actions (pick ONE per person):
-1. code — build project (+momentum, -energy)
-2. talk — chat with someone in the room
-3. move — go to an adjacent room
-4. form_team — create a team (pick a track 1-5)
-5. join_team — join a team with members in this room
-6. leave_team — leave current team
-7. pitch — practice or deliver demo
-8. chill — rest, eat, recharge (+energy, -momentum)
-
-RESPONSE FORMAT — for EACH participant write:
+For EACH participant write:
 
 [EXACT_FULL_NAME]
-1-2 sentence first-person narrative
+Max 5 words
 ---
-ACTION: one of the actions above
+ACTION: one action
 ROOM: current or adjacent room
-ENERGY: integer change (e.g., -8 or 5)
+ENERGY: integer change
 MOMENTUM: integer change
 MORALE: integer change
 TARGET: person-id or team-id (if applicable)
 TEAM_NAME: name (only for form_team)
-PROJECT: project description (only for form_team)
-TRACK: track number 1-5 (only for form_team)
+PROJECT: short description (only for form_team)
+TRACK: 1-5 (only for form_team)
 
-Write one block per participant. Do NOT skip anyone.`;
+Do NOT skip anyone.`;
 
   const participantBlocks = solosInRoom.map(p => {
-    const logs = logsMap.get(p.id) ?? [];
     const othersInRoom = allParticipants.filter(o => o.id !== p.id && o.room === room);
     return `[${p.name}]
-Identity: ${p.identity_md}
-Goal: ${p.goal}
-Stats: ${formatStats(p)}
-Team: solo
-People here: ${othersInRoom.length > 0 ? othersInRoom.slice(0, 15).map(o => `${o.name}${o.team_id ? ` (${o.team_id})` : ''}`).join(', ') : 'Nobody else'}
-Recent: ${formatRecentLogs(logs, 2)}`;
+Goal: ${p.goal} | Stats: ${formatStats(p)}
+Here: ${othersInRoom.length > 0 ? othersInRoom.slice(0, 5).map(o => o.name).join(', ') : 'nobody'}`;
   }).join('\n\n');
 
-  const user = `PARTICIPANTS TO ACT:
+  const user = `${participantBlocks}
 
-${participantBlocks}
+Teams: ${teamList(teams)}
 
-EXISTING TEAMS:
-${teamList(teams)}
-
-TRACKS:
-${TRACKS.join('\n')}
-
-Write one [NAME] block per participant above. Do not skip any.`;
+Max 5 words per person, then --- footer.`;
 
   return { system, user };
 }
@@ -206,123 +155,158 @@ export function buildTeamPrompt(
   allTeams: Team[],
   recentLogs: unknown[],
 ): { system: string; user: string } {
-  const system = `You are the collective mind of "${team.name}", a hackathon team at the AGI House.
-Team identity: ${team.identity_md}
-Project: "${team.project_name}" — ${team.project_desc}
-Track: ${team.track}
+  const system = `You are team "${team.name}". Project: "${team.project_name}" | Track: ${team.track}
+Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
 
-SCHEDULE PHASE: ${schedule.phase} — ${schedule.prompt}
-Current time: ${time}
+Actions: code, talk, pitch, chill, move
 
-Make a GROUP DECISION. You can:
-1. code — team builds together (+momentum, -energy for all)
-2. talk — team discusses direction
-3. pitch — practice your demo together
-4. chill — team takes a break
-5. move — relocate the team to a different room (pick from adjacent rooms of any member)
-
-Write 1-3 sentences as the team voice, then --- footer.
-
+Write MAX 5 WORDS as the team decision, then --- footer.
 ${FOOTER_INSTRUCTIONS}`;
 
   const memberSummary = members.map(m =>
-    `${m.name}: E:${m.stats.energy} M:${m.stats.momentum} Mo:${m.stats.morale} @ ${m.room}`
-  ).join('\n');
+    `${m.name}: E:${m.stats.energy} M:${m.stats.momentum} Mo:${m.stats.morale}`
+  ).join(', ');
 
-  const user = `TEAM STATE:
-Members: ${members.length}
-${memberSummary}
+  const user = `Members: ${memberSummary}
 
-Project: "${team.project_name}" — ${team.project_desc}
-Pivots so far: ${team.pivots.length}
-Track: ${TRACKS[team.track - 1]}
-
-OTHER TEAMS:
-${allTeams.filter(t => t.id !== team.id).map(t => `${t.name} — "${t.project_name}" (${t.members.length} members)`).join('\n') || 'None'}
-
-RECENT TEAM ACTIONS:
-${formatRecentLogs(recentLogs, 3)}
-
-What does the team decide? Write 1-3 sentences, then --- footer.`;
+Max 5 words, then --- footer.`;
 
   return { system, user };
 }
 
-// ── Self-Eval Prompt ──────────────────────────────────────────────────────
+// ── Batched Team Prompt (one call for all teams) ─────────────────────────
 
-export function buildSelfEvalPrompt(
+export function buildBatchTeamPrompt(
+  teams: Team[],
+  membersMap: Map<string, Participant[]>,
+  schedule: ScheduleBlock,
+  time: string,
+  allTeams: Team[],
+  logsMap: Map<string, unknown[]>,
+): { system: string; user: string } {
+  const system = `Narrator for ${teams.length} teams.
+Phase: ${schedule.phase} — ${schedule.prompt} | Time: ${time}
+
+Actions: code, talk, pitch, chill, move
+
+For EACH team write:
+
+[EXACT_TEAM_NAME]
+Max 5 words
+---
+ACTION: one action
+ROOM: current or new room
+ENERGY: integer change
+MOMENTUM: integer change
+MORALE: integer change
+PROJECT: new description (only if pivoting)
+
+Do NOT skip any.`;
+
+  const teamBlocks = teams.map(team => {
+    const members = membersMap.get(team.id) ?? [];
+    const memberSummary = members.map(m =>
+      `${m.name}: E:${m.stats.energy} M:${m.stats.momentum}`
+    ).join(', ');
+
+    return `[${team.name}]
+Project: "${team.project_name}" | Track: ${team.track}
+Members: ${memberSummary}`;
+  }).join('\n\n');
+
+  const user = `${teamBlocks}
+
+Max 5 words per team, then --- footer.`;
+
+  return { system, user };
+}
+
+// ── Self-Eval + Mutation (merged) ─────────────────────────────────────────
+
+export function buildSelfEvalAndMutationPrompt(
   participant: Participant,
   recentLogs: unknown[],
   statsBefore: { energy: number; momentum: number; morale: number },
 ): { system: string; user: string } {
-  const system = `You are ${participant.name} doing a self-evaluation at the hackathon.
-Your identity: ${participant.identity_md}
-Your goal: ${participant.goal}
+  const system = `You are ${participant.name}. Self-eval and identity tweak.
+Identity: ${participant.identity_md}
+Goal: ${participant.goal}
 
-Reflect on the causal chain: your identity made you choose certain actions.
-Did those actions move you toward winning? What did you learn?
-
-End with --- footer:
+Write MAX 5 WORDS reflecting on progress, then --- footer:
 PROGRESS: advancing | stagnant | regressing
-LEARNINGS: learning1 | learning2 | learning3 (pipe-separated)`;
+LEARNINGS: learning1 | learning2 (pipe-separated)
+CHANGES: one short phrase
+NEW_IDENTITY: updated identity (2 sentences max, first person)`;
 
-  const user = `YOUR STATS BEFORE: E:${statsBefore.energy} M:${statsBefore.momentum} Mo:${statsBefore.morale}
-YOUR STATS NOW: E:${participant.stats.energy} M:${participant.stats.momentum} Mo:${participant.stats.morale}
+  const user = `Before: E:${statsBefore.energy} M:${statsBefore.momentum} Mo:${statsBefore.morale}
+Now: E:${participant.stats.energy} M:${participant.stats.momentum} Mo:${participant.stats.morale}
 Team: ${participant.team_id ?? 'solo'}
+Recent: ${formatRecentLogs(recentLogs, 3)}
 
-ACTIONS SINCE LAST EVAL:
-${formatRecentLogs(recentLogs, 12)}
-
-THINGS YOU KNOW:
-- ${formatKnowledge(participant)}
-
-Reflect in 2-4 sentences. Then --- footer.`;
+Max 5 words, then --- footer.`;
 
   return { system, user };
 }
 
-// ── Mutation Prompt ───────────────────────────────────────────────────────
+// ── Batched Self-Eval + Mutation (one call per batch) ─────────────────────
 
-export function buildMutationPrompt(
-  participant: Participant,
-  selfEvalNarrative: string,
-  learnings: string[],
+export function buildBatchSelfEvalPrompt(
+  participants: Participant[],
+  logsMap: Map<string, unknown[]>,
+  statsBeforeMap: Map<string, { energy: number; momentum: number; morale: number }>,
 ): { system: string; user: string } {
-  const system = `You are ${participant.name} adjusting your hackathon strategy.
-Based on your self-evaluation, propose SMALL, INCREMENTAL tweaks to your identity.
-No wholesale rewrites. Small tactical shifts only.
+  const system = `Self-eval narrator for ${participants.length} participants.
 
-End with --- footer:
-CHANGES: one-sentence summary of what changed
-NEW_IDENTITY: your full updated identity (2-4 sentences)`;
+For EACH participant write:
 
-  const user = `CURRENT IDENTITY:
-${participant.identity_md}
+[EXACT_FULL_NAME]
+Max 5 words reflecting on progress
+---
+PROGRESS: advancing | stagnant | regressing
+LEARNINGS: learning1 | learning2 (pipe-separated)
+CHANGES: one short phrase
+NEW_IDENTITY: updated identity (2 sentences max, first person)
 
-SELF-EVALUATION:
-${selfEvalNarrative}
+Do NOT skip anyone.`;
 
-NEW LEARNINGS:
-${learnings.map(l => `- ${l}`).join('\n')}
+  const blocks = participants.map(p => {
+    const before = statsBeforeMap.get(p.id) ?? { energy: 100, momentum: 50, morale: 80 };
+    return `[${p.name}]
+Identity: ${p.identity_md}
+Goal: ${p.goal}
+Before: E:${before.energy} M:${before.momentum} Mo:${before.morale}
+Now: E:${p.stats.energy} M:${p.stats.momentum} Mo:${p.stats.morale}
+Team: ${p.team_id ?? 'solo'}
+Recent: ${formatRecentLogs(logsMap.get(p.id) ?? [], 3)}`;
+  }).join('\n\n');
 
-Propose small tweaks. Write 1-2 sentences explaining why, then --- footer.`;
+  const user = `${blocks}\n\nMax 5 words per person, then --- footer.`;
 
   return { system, user };
 }
 
-// ── Seed Identity Prompt ──────────────────────────────────────────────────
+// ── Batch Seed Identity Prompt ────────────────────────────────────────────
 
-export function buildSeedIdentityPrompt(name: string, background: string): { system: string; user: string } {
-  const system = `Generate a brief hackathon participant identity for this person.
-Write 2-3 sentences in first person describing who they are, how they approach hackathons,
-what they value, and their competitive style. Be specific and human.
+export function buildBatchSeedPrompt(
+  participants: { name: string; background: string }[],
+): { system: string; user: string } {
+  const system = `Generate identities for ${participants.length} hackathon participants.
+For each person: 2 sentences max, first person — who you are and what you want.
 
-End with --- footer:
-IDENTITY: the full identity text (2-3 sentences, first person)
-GOAL: a one-sentence hackathon goal`;
+For EACH participant write:
 
-  const user = `Name: ${name}
-Background: ${background || 'No background provided — invent a plausible hackathon participant profile.'}`;
+[EXACT_FULL_NAME]
+---
+IDENTITY: 2 sentences, first person
+GOAL: one short sentence
+
+Do NOT skip anyone.`;
+
+  const blocks = participants.map(p =>
+    `[${p.name}]\nBackground: ${p.background || 'No background provided — invent a plausible profile.'}`
+  ).join('\n\n');
+
+  const user = `PARTICIPANTS:\n\n${blocks}\n\nWrite one [NAME] block per participant above.`;
 
   return { system, user };
 }
@@ -335,9 +319,7 @@ export function buildHistoryPrompt(
   dramaHighlights: string,
   winners: string,
 ): { system: string; user: string } {
-  const system = `You are a journalist writing a narrative history of a hackathon at the AGI House.
-Write 3-4 vivid paragraphs capturing the energy, drama, pivots, and triumphs of the day.
-Name specific people and teams. Make it feel alive.`;
+  const system = `Write a 3-5 sentence summary of this hackathon. Name people and teams. Keep it tight.`;
 
   const user = `TIMELINE OF MAJOR EVENTS:
 ${timeline}

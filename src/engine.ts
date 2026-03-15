@@ -1,8 +1,8 @@
 /**
  * engine.ts — The heartbeat loop for nanoSociety.
- * Coordinates all simulation phases: individual actions, team groupthink,
- * self-eval + identity mutation. All LLM calls within a phase fire in
- * parallel via Promise.all for maximum speed.
+ * Hybrid tick system: autopilot ticks use pre-baked narratives for speed,
+ * LLM ticks fire real model calls for pivotal decisions (team formation,
+ * creative moments). Phase C self-eval is batched. Drama events inject chaos.
  */
 
 import type {
@@ -12,14 +12,15 @@ import type {
 import { SCHEDULE, HACKATHON_START_HOUR, TOTAL_HACKATHON_MINUTES } from './types.js';
 import * as store from './store.js';
 import {
-  parseActionResponse, parseBatchActionResponse,
-  parseSelfEvalResponse, parseMutationResponse,
+  parseBatchActionResponse, parseBatchTeamResponse,
+  parseBatchSelfEvalResponse,
   applyAction, applyTeamAction, applyStatChanges,
 } from './actions.js';
 import {
-  buildBatchActionPrompt, buildTeamPrompt,
-  buildSelfEvalPrompt, buildMutationPrompt,
+  buildBatchActionPrompt, buildBatchTeamPrompt,
+  buildBatchSelfEvalPrompt,
 } from './prompts.js';
+import { generateAutopilotAction, isLLMTick, rollDrama } from './autopilot.js';
 import type { LogEntry } from './renderer.js';
 import { broadcast, broadcastProgress, waitForStart } from './server.js';
 
@@ -51,12 +52,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
 // ── Engine ────────────────────────────────────────────────────────────────
 
 export async function runSimulation(llm: LLMProvider): Promise<void> {
   const sandbox = store.loadSandbox();
-  const tickInterval = parseInt(process.env.TICK_INTERVAL_MS ?? '2000', 10);
+  const tickInterval = parseInt(process.env.TICK_INTERVAL_MS ?? '0', 10);
   const selfEvalInterval = parseInt(process.env.SELF_EVAL_INTERVAL ?? '12', 10);
+  const llmTickInterval = parseInt(process.env.LLM_TICK_INTERVAL ?? '3', 10);
+  const selfEvalBatchSize = parseInt(process.env.SELF_EVAL_BATCH_SIZE ?? '25', 10);
 
   const recentLogs: LogEntry[] = [];
   const statSnapshots = new Map<string, { energy: number; momentum: number; morale: number }>();
@@ -66,7 +73,6 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
     process.exit(0);
   });
 
-  // Broadcast initial state and wait for the client to press Start
   const participants0 = store.loadAllParticipants();
   const teams0 = store.loadAllTeams();
   const minutes0 = tickToMinutes(sandbox.tick, sandbox.minutesPerTick);
@@ -95,8 +101,9 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
       let participants = store.loadAllParticipants();
       let teams = store.loadAllTeams();
       const soloCount = participants.filter(p => !p.team_id).length;
+      const useLLM = isLLMTick(tick, phase.phase, llmTickInterval);
 
-      console.log(`\n── TICK ${tick}/${sandbox.totalTicks} ── ${time} ── ${phase.phase} ── T:${teams.length} S:${soloCount} P:${participants.length} ──`);
+      console.log(`\n── TICK ${tick}/${sandbox.totalTicks} ── ${time} ── ${phase.phase} ── ${useLLM ? 'LLM' : 'AUTO'} ── T:${teams.length} S:${soloCount} P:${participants.length} ──`);
 
       if (phase.forceRoom) {
         console.log(`  Force room: ${phase.forceRoom}`);
@@ -106,193 +113,113 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
         }
       }
 
-      // ── Phase A + B run in parallel ─────────────────────────────
-
-      broadcastProgress(`Tick ${tick}/${sandbox.totalTicks} — processing actions...`);
-
-      const phaseA = async () => {
-        const solos = participants.filter(p => !p.team_id);
-        if (solos.length === 0 || phase.phase === 'KEYNOTE') return;
-
-        const byRoom = new Map<RoomName, Participant[]>();
-        for (const p of solos) {
-          if (!byRoom.has(p.room)) byRoom.set(p.room, []);
-          byRoom.get(p.room)!.push(p);
+      // ── Drama Event Roll ─────────────────────────────────────────
+      const drama = rollDrama();
+      if (drama) {
+        console.log(`  🎲 DRAMA: ${drama.description}`);
+        sandbox.events.push({ tick, time, type: 'drama', description: drama.description });
+        recentLogs.push({
+          name: '🎲 EVENT',
+          action: drama.description.slice(0, 80),
+          actionType: 'drama' as any,
+          teamId: null,
+        });
+        for (const p of participants) {
+          p.stats.energy = clamp(p.stats.energy + drama.energy, 0, 100);
+          p.stats.momentum = clamp(p.stats.momentum + drama.momentum, 0, 100);
+          p.stats.morale = clamp(p.stats.morale + drama.morale, 0, 100);
+          store.saveParticipant(p);
         }
+      }
 
-        console.log(`  Phase A: ${solos.length} solos across ${byRoom.size} rooms`);
-        broadcastProgress(`Phase A: ${solos.length} solos across ${byRoom.size} rooms`);
+      // ── Phase A + B: LLM or Autopilot ────────────────────────────
 
-        const phaseAStart = Date.now();
-
-        const roomPromises = Array.from(byRoom.entries()).map(async ([room, roomSolos]) => {
-          const roomStart = Date.now();
-          const logsMap = new Map<string, unknown[]>();
-          for (const p of roomSolos) {
-            logsMap.set(p.id, store.readActionLog(p.id));
-          }
-
-          const maxTokens = Math.min(4096, 150 * roomSolos.length);
-
-          try {
-            const { system, user } = buildBatchActionPrompt(
-              roomSolos, phase, time, participants, teams, logsMap,
-            );
-            const raw = await llm.generate(system, user, maxTokens);
-            const batchResults = parseBatchActionResponse(raw, roomSolos.map(p => p.name));
-
-            let parsed_count = 0;
-            for (const p of roomSolos) {
-              const parsed = batchResults.get(p.name);
-              if (!parsed) continue;
-              parsed_count++;
-
-              const result = applyAction(p, parsed, participants, teams, tick, time);
-
-              store.saveParticipant(p);
-              store.appendActionLog(p.id, {
-                tick, time, action_type: parsed.footer.ACTION,
-                room: p.room, narrative: parsed.narrative,
-                stats: { ...p.stats },
-              });
-
-              recentLogs.push({
-                name: p.name,
-                action: parsed.narrative.slice(0, 80),
-                actionType: parsed.footer.ACTION,
-                teamId: p.team_id,
-              });
-
-              if (result.newTeam) {
-                store.saveTeam(result.newTeam);
-                teams.push(result.newTeam);
-              }
-
-              for (const evt of result.events) {
-                sandbox.events.push(evt);
-              }
-            }
-
-            console.log(`    ✓ ${room}: ${parsed_count}/${roomSolos.length} parsed (${Date.now() - roomStart}ms)`);
-          } catch (err: any) {
-            console.log(`    ✗ ${room}: FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - roomStart}ms)`);
-          }
-        });
-
-        await Promise.all(roomPromises);
-        console.log(`  Phase A done (${Date.now() - phaseAStart}ms)`);
-      };
-
-      const phaseB = async () => {
-        if (teams.length === 0 || phase.phase === 'KEYNOTE') return;
-
-        console.log(`  Phase B: ${teams.length} teams`);
-        broadcastProgress(`Phase B: ${teams.length} teams deciding...`);
-
-        const phaseBStart = Date.now();
-
-        const teamPromises = teams.map(async (team) => {
-          const members = participants.filter(p => p.team_id === team.id);
-          if (members.length === 0) return;
-
-          const teamStart = Date.now();
-          const logs = store.readActionLog(team.members[0]!);
-          const { system, user } = buildTeamPrompt(team, members, phase, time, teams, logs);
-
-          try {
-            const raw = await llm.generate(system, user);
-            const parsed = parseActionResponse(raw);
-            const events = applyTeamAction(team, parsed, members, tick, time);
-
-            store.saveTeam(team);
-            for (const member of members) {
-              store.saveParticipant(member);
-              store.appendActionLog(member.id, {
-                tick, time, action_type: `team:${parsed.footer.ACTION}`,
-                room: member.room, narrative: parsed.narrative,
-                stats: { ...member.stats },
-              });
-            }
-
-            recentLogs.push({
-              name: team.name,
-              action: parsed.narrative.slice(0, 80),
-              actionType: `team:${parsed.footer.ACTION}`,
-              teamId: team.id,
-            });
-
-            for (const evt of events) {
-              sandbox.events.push(evt);
-            }
-
-            console.log(`    ✓ ${team.name}: ${parsed.footer.ACTION} (${Date.now() - teamStart}ms)`);
-          } catch (err: any) {
-            console.log(`    ✗ ${team.name}: FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - teamStart}ms)`);
-          }
-        });
-
-        await Promise.all(teamPromises);
-        console.log(`  Phase B done (${Date.now() - phaseBStart}ms)`);
-      };
-
-      await Promise.all([phaseA(), phaseB()]);
+      if (useLLM) {
+        broadcastProgress(`Tick ${tick}/${sandbox.totalTicks} — LLM processing...`);
+        await Promise.all([
+          runPhaseA_LLM(llm, participants, teams, phase, time, tick, sandbox, recentLogs),
+          runPhaseB_LLM(llm, participants, teams, phase, time, tick, sandbox, recentLogs),
+        ]);
+      } else {
+        broadcastProgress(`Tick ${tick}/${sandbox.totalTicks} — autopilot...`);
+        runAutopilotTick(participants, teams, phase, time, tick, sandbox, recentLogs);
+      }
 
       participants = store.loadAllParticipants();
       teams = store.loadAllTeams();
 
-      // ── Phase C: Self-eval + mutation (every N ticks) ────────────
+      // ── Phase C: Batched Self-eval + mutation ────────────────────
 
       if (tick % selfEvalInterval === 0 && tick > 0) {
-        console.log(`  Phase C: self-eval + mutation (${participants.length} participants)`);
-        broadcastProgress(`Phase C: self-eval + mutation for ${participants.length} participants...`);
-        participants = store.loadAllParticipants();
+        console.log(`  Phase C: batched self-eval (${participants.length} participants, batches of ${selfEvalBatchSize})`);
+        broadcastProgress(`Phase C: self-eval for ${participants.length} participants...`);
 
         const phaseCStart = Date.now();
         let mutationCount = 0;
 
-        const evalPromises = participants.map(async (p) => {
-          const logs = store.readActionLog(p.id);
-          const before = statSnapshots.get(p.id) ?? { energy: 100, momentum: 50, morale: 80 };
-          const { system: evalSys, user: evalUser } = buildSelfEvalPrompt(p, logs, before);
+        const batches: Participant[][] = [];
+        for (let i = 0; i < participants.length; i += selfEvalBatchSize) {
+          batches.push(participants.slice(i, i + selfEvalBatchSize));
+        }
+
+        const batchPromises = batches.map(async (batch) => {
+          const logsMap = new Map<string, unknown[]>();
+          const statsBeforeMap = new Map<string, { energy: number; momentum: number; morale: number }>();
+          for (const p of batch) {
+            logsMap.set(p.id, store.readActionLog(p.id));
+            statsBeforeMap.set(p.id, statSnapshots.get(p.id) ?? { energy: 100, momentum: 50, morale: 80 });
+          }
+
+          const maxTokens = Math.min(4096, 100 * batch.length);
 
           try {
-            const evalRaw = await llm.generate(evalSys, evalUser);
-            const evalParsed = parseSelfEvalResponse(evalRaw);
+            const { system, user } = buildBatchSelfEvalPrompt(batch, logsMap, statsBeforeMap);
+            const raw = await llm.generate(system, user, maxTokens);
+            const batchResults = parseBatchSelfEvalResponse(raw, batch.map(p => p.name));
 
-            p.world_knowledge.push(...evalParsed.learnings);
-            if (p.world_knowledge.length > 20) {
-              p.world_knowledge = p.world_knowledge.slice(-20);
-            }
+            for (const p of batch) {
+              const parsed = batchResults.get(p.name);
+              if (!parsed) continue;
 
-            const { system: mutSys, user: mutUser } = buildMutationPrompt(p, evalParsed.narrative, evalParsed.learnings);
-            const mutRaw = await llm.generate(mutSys, mutUser);
-            const mutParsed = parseMutationResponse(mutRaw);
+              p.world_knowledge.push(...parsed.learnings);
+              if (p.world_knowledge.length > 20) {
+                p.world_knowledge = p.world_knowledge.slice(-20);
+              }
 
-            if (mutParsed.newIdentity) {
-              store.archiveIdentity(p.id, tick, p.identity_md);
-              p.identity_md = mutParsed.newIdentity;
-              mutationCount++;
-
-              sandbox.events.push({
-                tick, time, type: 'mutation',
-                description: `${p.name}: ${mutParsed.changes}`,
+              store.appendEvalLog(p.id, {
+                tick,
+                progress: parsed.progress,
+                learnings: parsed.learnings,
+                changes: parsed.changes,
+                stats: { ...p.stats },
               });
 
-              recentLogs.push({
-                name: p.name,
-                action: `IDENTITY EVOLVED: ${mutParsed.changes.slice(0, 60)}`,
-                actionType: 'mutation',
-                teamId: p.team_id,
-              });
-            }
+              if (parsed.newIdentity) {
+                store.archiveIdentity(p.id, tick, p.identity_md);
+                p.identity_md = parsed.newIdentity;
+                mutationCount++;
 
-            store.saveParticipant(p);
-          } catch (err) {
-            // LLM failure — skip mutation
+                sandbox.events.push({
+                  tick, time, type: 'mutation',
+                  description: `${p.name}: ${parsed.changes}`,
+                });
+
+                recentLogs.push({
+                  name: p.name,
+                  action: `IDENTITY EVOLVED: ${parsed.changes.slice(0, 60)}`,
+                  actionType: 'mutation',
+                  teamId: p.team_id,
+                });
+              }
+
+              store.saveParticipant(p);
+            }
+          } catch (err: any) {
+            console.log(`    Phase C batch FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'}`);
           }
         });
 
-        await Promise.all(evalPromises);
+        await Promise.all(batchPromises);
         console.log(`  Phase C done: ${mutationCount} mutations (${Date.now() - phaseCStart}ms)`);
 
         for (const p of store.loadAllParticipants()) {
@@ -323,7 +250,7 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
       const elapsed = Date.now() - tickStart;
       console.log(`  Tick ${tick} complete (${elapsed}ms total)`);
 
-      await sleep(tickInterval);
+      if (tickInterval > 0) await sleep(tickInterval);
     }
   } finally {
     // no cleanup needed
@@ -334,4 +261,204 @@ export async function runSimulation(llm: LLMProvider): Promise<void> {
   console.log(`  ${sandbox.totalTicks} ticks  │  ${sandbox.events.length} events logged`);
   console.log('  Run: npm run analyze');
   console.log('════════════════════════════════════════════════════════\n');
+}
+
+// ── Phase A: LLM batched by room ────────────────────────────────────────
+
+async function runPhaseA_LLM(
+  llm: LLMProvider,
+  participants: Participant[],
+  teams: Team[],
+  phase: ScheduleBlock,
+  time: string,
+  tick: number,
+  sandbox: SandboxState,
+  recentLogs: LogEntry[],
+): Promise<void> {
+  const solos = participants.filter(p => !p.team_id);
+  if (solos.length === 0 || phase.phase === 'KEYNOTE') return;
+
+  const byRoom = new Map<RoomName, Participant[]>();
+  for (const p of solos) {
+    if (!byRoom.has(p.room)) byRoom.set(p.room, []);
+    byRoom.get(p.room)!.push(p);
+  }
+
+  console.log(`  Phase A: ${solos.length} solos across ${byRoom.size} rooms`);
+  const phaseAStart = Date.now();
+
+  const roomPromises = Array.from(byRoom.entries()).map(async ([room, roomSolos]) => {
+    const roomStart = Date.now();
+    const logsMap = new Map<string, unknown[]>();
+    for (const p of roomSolos) {
+      logsMap.set(p.id, store.readActionLog(p.id));
+    }
+
+    const maxTokens = Math.min(4096, 150 * roomSolos.length);
+
+    try {
+      const { system, user } = buildBatchActionPrompt(roomSolos, phase, time, participants, teams, logsMap);
+      const raw = await llm.generate(system, user, maxTokens);
+      const batchResults = parseBatchActionResponse(raw, roomSolos.map(p => p.name));
+
+      let parsed_count = 0;
+      for (const p of roomSolos) {
+        const parsed = batchResults.get(p.name);
+        if (!parsed) continue;
+        parsed_count++;
+
+        const result = applyAction(p, parsed, participants, teams, tick, time);
+        store.saveParticipant(p);
+        store.appendActionLog(p.id, {
+          tick, time, action_type: parsed.footer.ACTION,
+          room: p.room, narrative: parsed.narrative,
+          stats: { ...p.stats },
+        });
+
+        recentLogs.push({
+          name: p.name,
+          action: parsed.narrative.slice(0, 80),
+          actionType: parsed.footer.ACTION,
+          teamId: p.team_id,
+        });
+
+        if (result.newTeam) {
+          store.saveTeam(result.newTeam);
+          teams.push(result.newTeam);
+        }
+        for (const evt of result.events) {
+          sandbox.events.push(evt);
+        }
+      }
+
+      console.log(`    ✓ ${room}: ${parsed_count}/${roomSolos.length} parsed (${Date.now() - roomStart}ms)`);
+    } catch (err: any) {
+      console.log(`    ✗ ${room}: FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - roomStart}ms)`);
+    }
+  });
+
+  await Promise.all(roomPromises);
+  console.log(`  Phase A done (${Date.now() - phaseAStart}ms)`);
+}
+
+// ── Phase B: LLM batched teams ──────────────────────────────────────────
+
+async function runPhaseB_LLM(
+  llm: LLMProvider,
+  participants: Participant[],
+  teams: Team[],
+  phase: ScheduleBlock,
+  time: string,
+  tick: number,
+  sandbox: SandboxState,
+  recentLogs: LogEntry[],
+): Promise<void> {
+  const activeTeams = teams.filter(t => {
+    const members = participants.filter(p => p.team_id === t.id);
+    return members.length > 0;
+  });
+  if (activeTeams.length === 0 || phase.phase === 'KEYNOTE') return;
+
+  console.log(`  Phase B: ${activeTeams.length} teams`);
+  const phaseBStart = Date.now();
+
+  const membersMap = new Map<string, Participant[]>();
+  const logsMap = new Map<string, unknown[]>();
+  for (const team of activeTeams) {
+    const members = participants.filter(p => p.team_id === team.id);
+    membersMap.set(team.id, members);
+    logsMap.set(team.id, store.readActionLog(team.members[0]!));
+  }
+
+  const maxTokens = Math.min(4096, 200 * activeTeams.length);
+
+  try {
+    const { system, user } = buildBatchTeamPrompt(activeTeams, membersMap, phase, time, teams, logsMap);
+    const raw = await llm.generate(system, user, maxTokens);
+    const batchResults = parseBatchTeamResponse(raw, activeTeams.map(t => t.name));
+
+    for (const team of activeTeams) {
+      const parsed = batchResults.get(team.name);
+      if (!parsed) continue;
+
+      const members = membersMap.get(team.id) ?? [];
+      const events = applyTeamAction(team, parsed, members, tick, time);
+
+      store.saveTeam(team);
+      for (const member of members) {
+        store.saveParticipant(member);
+        store.appendActionLog(member.id, {
+          tick, time, action_type: `team:${parsed.footer.ACTION}`,
+          room: member.room, narrative: parsed.narrative,
+          stats: { ...member.stats },
+        });
+      }
+
+      recentLogs.push({
+        name: team.name,
+        action: parsed.narrative.slice(0, 80),
+        actionType: `team:${parsed.footer.ACTION}`,
+        teamId: team.id,
+      });
+
+      for (const evt of events) {
+        sandbox.events.push(evt);
+      }
+    }
+
+    console.log(`  Phase B done: ${activeTeams.length} teams (${Date.now() - phaseBStart}ms)`);
+  } catch (err: any) {
+    console.log(`  Phase B FAILED — ${err?.message?.slice(0, 80) ?? 'unknown error'} (${Date.now() - phaseBStart}ms)`);
+  }
+}
+
+// ── Autopilot Tick: no LLM calls ────────────────────────────────────────
+
+function runAutopilotTick(
+  participants: Participant[],
+  teams: Team[],
+  phase: ScheduleBlock,
+  time: string,
+  tick: number,
+  sandbox: SandboxState,
+  recentLogs: LogEntry[],
+): void {
+  const autoStart = Date.now();
+
+  const byRoom = new Map<RoomName, Participant[]>();
+  for (const p of participants) {
+    if (!byRoom.has(p.room)) byRoom.set(p.room, []);
+    byRoom.get(p.room)!.push(p);
+  }
+
+  for (const [room, roomParticipants] of byRoom) {
+    for (const p of roomParticipants) {
+      const parsed = generateAutopilotAction(p, phase.phase, roomParticipants);
+      const result = applyAction(p, parsed, participants, teams, tick, time);
+
+      store.saveParticipant(p);
+      store.appendActionLog(p.id, {
+        tick, time, action_type: parsed.footer.ACTION,
+        room: p.room, narrative: parsed.narrative,
+        stats: { ...p.stats },
+      });
+
+      recentLogs.push({
+        name: p.name,
+        action: parsed.narrative.slice(0, 80),
+        actionType: parsed.footer.ACTION,
+        teamId: p.team_id,
+      });
+
+      if (result.newTeam) {
+        store.saveTeam(result.newTeam);
+        teams.push(result.newTeam);
+      }
+      for (const evt of result.events) {
+        sandbox.events.push(evt);
+      }
+    }
+  }
+
+  console.log(`  Autopilot done (${Date.now() - autoStart}ms)`);
 }

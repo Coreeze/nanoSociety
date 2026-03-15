@@ -6,12 +6,20 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { Participant, Team, SandboxState, ParticipantInput, Judge } from './types.js';
+import { Participant, Team, SandboxState, ParticipantInput, Judge, EvalLogEntry } from './types.js';
 
 const DATA_DIR = path.resolve('data');
 const BEINGS_DIR = path.join(DATA_DIR, 'beings');
 const TEAMS_DIR = path.join(DATA_DIR, 'teams');
 const ANALYSIS_DIR = path.join(DATA_DIR, 'analysis');
+
+let participantCache: Map<string, Participant> | null = null;
+let teamCache: Map<string, Team> | null = null;
+
+export function invalidateCache(): void {
+  participantCache = null;
+  teamCache = null;
+}
 
 export function ensureDataDirs(): void {
   for (const dir of [DATA_DIR, BEINGS_DIR, TEAMS_DIR, ANALYSIS_DIR]) {
@@ -64,21 +72,24 @@ export function loadParticipant(id: string): Participant {
 }
 
 export function saveParticipant(p: Participant): void {
+  if (participantCache) participantCache.set(p.id, p);
   writeJSON(participantStatePath(p.id), p);
 }
 
 export function loadAllParticipants(): Participant[] {
+  if (participantCache) return Array.from(participantCache.values());
   if (!fs.existsSync(BEINGS_DIR)) return [];
   const dirs = fs.readdirSync(BEINGS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory());
-  const participants: Participant[] = [];
+  participantCache = new Map();
   for (const dir of dirs) {
     const statePath = path.join(BEINGS_DIR, dir.name, 'state.json');
     if (fs.existsSync(statePath)) {
-      participants.push(readJSON<Participant>(statePath));
+      const p = readJSON<Participant>(statePath);
+      participantCache.set(p.id, p);
     }
   }
-  return participants;
+  return Array.from(participantCache.values());
 }
 
 export function appendActionLog(id: string, entry: unknown): void {
@@ -88,6 +99,21 @@ export function appendActionLog(id: string, entry: unknown): void {
 
 export function readActionLog(id: string): unknown[] {
   const logPath = path.join(participantDir(id), 'logs', 'actions.jsonl');
+  if (!fs.existsSync(logPath)) return [];
+  return fs.readFileSync(logPath, 'utf-8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line));
+}
+
+export function appendEvalLog(id: string, entry: EvalLogEntry): void {
+  const logPath = path.join(participantDir(id), 'logs', 'evals.jsonl');
+  appendJSONL(logPath, entry);
+}
+
+export function readEvalLog(id: string): EvalLogEntry[] {
+  const logPath = path.join(participantDir(id), 'logs', 'evals.jsonl');
   if (!fs.existsSync(logPath)) return [];
   return fs.readFileSync(logPath, 'utf-8')
     .trim()
@@ -129,14 +155,19 @@ export function loadTeam(id: string): Team {
 }
 
 export function saveTeam(team: Team): void {
+  if (teamCache) teamCache.set(team.id, team);
   writeJSON(teamPath(team.id), team);
 }
 
 export function loadAllTeams(): Team[] {
+  if (teamCache) return Array.from(teamCache.values());
   if (!fs.existsSync(TEAMS_DIR)) return [];
-  return fs.readdirSync(TEAMS_DIR)
-    .filter(f => f.endsWith('.json'))
-    .map(f => readJSON<Team>(path.join(TEAMS_DIR, f)));
+  teamCache = new Map();
+  for (const f of fs.readdirSync(TEAMS_DIR).filter(f => f.endsWith('.json'))) {
+    const t = readJSON<Team>(path.join(TEAMS_DIR, f));
+    teamCache.set(t.id, t);
+  }
+  return Array.from(teamCache.values());
 }
 
 // ── Participants Input ────────────────────────────────────────────────────

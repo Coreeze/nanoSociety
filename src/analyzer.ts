@@ -6,7 +6,7 @@
  */
 
 import chalk from 'chalk';
-import type { LLMProvider, Participant, Team, SimEvent, Judge } from './types.js';
+import type { LLMProvider, Participant, Team, SimEvent, Judge, EvalLogEntry } from './types.js';
 import { TRACKS, HACKATHON_START_HOUR } from './types.js';
 import { buildHistoryPrompt } from './prompts.js';
 import * as store from './store.js';
@@ -49,19 +49,40 @@ function buildTeamSummaries(teams: Team[]): string {
 
 function buildIdentityEvolution(participants: Participant[]): string {
   const lines: string[] = [];
-  const sample = participants.slice(0, 6);
 
-  for (const p of sample) {
+  for (const p of participants) {
     const versions = store.listIdentityVersions(p.id);
-    if (versions.length <= 1) continue;
+    const evals = store.readEvalLog(p.id);
+
+    if (versions.length <= 1 && evals.length === 0) continue;
 
     lines.push(`  ${chalk.bold.green(p.name)}:`);
+
     for (const tick of versions) {
       const identity = store.readIdentityVersion(p.id, tick);
       const label = tick === 0 ? 'START' : `Tick ${tick}`;
-      lines.push(`    ${chalk.dim(label)}: "${identity.slice(0, 100)}${identity.length > 100 ? '...' : ''}"`);
+      lines.push(`    ${chalk.dim(label)}: "${identity.slice(0, 120)}${identity.length > 120 ? '...' : ''}"`);
     }
-    lines.push(`    ${chalk.dim('NOW')}: "${p.identity_md.slice(0, 100)}${p.identity_md.length > 100 ? '...' : ''}"`);
+    if (versions.length > 0) {
+      lines.push(`    ${chalk.dim('FINAL')}: "${p.identity_md.slice(0, 120)}${p.identity_md.length > 120 ? '...' : ''}"`);
+    }
+
+    if (evals.length > 0) {
+      const progressSeq = evals.map(e => e.progress).join(' -> ');
+      lines.push(`    ${chalk.dim('Progress')}: ${progressSeq}`);
+
+      const allLearnings = evals.flatMap(e => e.learnings);
+      if (allLearnings.length > 0) {
+        lines.push(`    ${chalk.dim('Learnings')}: ${allLearnings.slice(0, 6).join(' | ')}`);
+      }
+
+      const first = evals[0]!;
+      const last = evals[evals.length - 1]!;
+      const mDelta = last.stats.momentum - first.stats.momentum;
+      const moDelta = last.stats.morale - first.stats.morale;
+      lines.push(`    ${chalk.dim('Stats delta')}: momentum ${mDelta >= 0 ? '+' : ''}${mDelta}, morale ${moDelta >= 0 ? '+' : ''}${moDelta}`);
+    }
+
     lines.push('');
   }
 
@@ -142,6 +163,168 @@ function buildAwards(participants: Participant[], teams: Team[], events: SimEven
   return awards.join('\n') || '  No awards to give.';
 }
 
+// ── Self-Improvement Metrics ──────────────────────────────────────────────
+
+function wordOverlap(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/));
+  if (wordsA.size === 0 && wordsB.size === 0) return 1;
+  const union = new Set([...wordsA, ...wordsB]);
+  const intersection = [...wordsA].filter(w => wordsB.has(w));
+  return union.size > 0 ? intersection.length / union.size : 0;
+}
+
+function buildSelfImprovementMetrics(participants: Participant[]): string {
+  const lines: string[] = [];
+
+  const allEvals: { id: string; evals: EvalLogEntry[] }[] = [];
+  for (const p of participants) {
+    const evals = store.readEvalLog(p.id);
+    if (evals.length > 0) allEvals.push({ id: p.id, evals });
+  }
+
+  if (allEvals.length === 0) {
+    return '  No eval data recorded (simulation may not have run long enough for self-eval ticks).';
+  }
+
+  // Improvement rate: % whose last eval is "advancing"
+  const lastAdvancing = allEvals.filter(({ evals }) =>
+    evals[evals.length - 1]!.progress === 'advancing'
+  ).length;
+  const firstAdvancing = allEvals.filter(({ evals }) =>
+    evals[0]!.progress === 'advancing'
+  ).length;
+  lines.push(`  ${chalk.bold('Improvement Rate')}`);
+  lines.push(`    First eval "advancing": ${firstAdvancing}/${allEvals.length} (${Math.round(firstAdvancing / allEvals.length * 100)}%)`);
+  lines.push(`    Last eval "advancing":  ${lastAdvancing}/${allEvals.length} (${Math.round(lastAdvancing / allEvals.length * 100)}%)`);
+  lines.push('');
+
+  // Avg stats delta
+  let totalMomentumDelta = 0;
+  let totalMoraleDelta = 0;
+  for (const { evals } of allEvals) {
+    const first = evals[0]!;
+    const last = evals[evals.length - 1]!;
+    totalMomentumDelta += last.stats.momentum - first.stats.momentum;
+    totalMoraleDelta += last.stats.morale - first.stats.morale;
+  }
+  const avgMom = Math.round(totalMomentumDelta / allEvals.length * 10) / 10;
+  const avgMo = Math.round(totalMoraleDelta / allEvals.length * 10) / 10;
+  lines.push(`  ${chalk.bold('Avg Stats Delta (first eval to last)')}`);
+  lines.push(`    Momentum: ${avgMom >= 0 ? '+' : ''}${avgMom}`);
+  lines.push(`    Morale:   ${avgMo >= 0 ? '+' : ''}${avgMo}`);
+  lines.push('');
+
+  // Mutation effectiveness: after a mutation, did stats improve in next eval?
+  let effectiveMutations = 0;
+  let totalMutations = 0;
+  for (const { evals } of allEvals) {
+    for (let i = 0; i < evals.length - 1; i++) {
+      if (evals[i]!.changes) {
+        totalMutations++;
+        const before = evals[i]!.stats;
+        const after = evals[i + 1]!.stats;
+        if (after.momentum > before.momentum || after.morale > before.morale) {
+          effectiveMutations++;
+        }
+      }
+    }
+  }
+  if (totalMutations > 0) {
+    lines.push(`  ${chalk.bold('Mutation Effectiveness')}`);
+    lines.push(`    ${effectiveMutations}/${totalMutations} mutations led to improved stats (${Math.round(effectiveMutations / totalMutations * 100)}%)`);
+    lines.push('');
+  }
+
+  // Knowledge growth
+  const totalLearnings = allEvals.reduce((sum, { evals }) =>
+    sum + evals.reduce((s, e) => s + e.learnings.length, 0), 0);
+  const avgLearnings = Math.round(totalLearnings / allEvals.length * 10) / 10;
+  lines.push(`  ${chalk.bold('Knowledge Growth')}`);
+  lines.push(`    Total learnings extracted: ${totalLearnings}`);
+  lines.push(`    Avg learnings per participant: ${avgLearnings}`);
+  lines.push('');
+
+  // Identity drift
+  const drifts: number[] = [];
+  for (const p of participants) {
+    const versions = store.listIdentityVersions(p.id);
+    if (versions.length < 1) continue;
+    const startIdentity = store.readIdentityVersion(p.id, versions[0]!);
+    const drift = 1 - wordOverlap(startIdentity, p.identity_md);
+    drifts.push(drift);
+  }
+  if (drifts.length > 0) {
+    const avgDrift = Math.round(drifts.reduce((a, b) => a + b, 0) / drifts.length * 100);
+    const maxDrift = Math.round(Math.max(...drifts) * 100);
+    lines.push(`  ${chalk.bold('Identity Drift')}`);
+    lines.push(`    Avg identity change: ${avgDrift}%`);
+    lines.push(`    Max identity change: ${maxDrift}%`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function buildEvolutionReport(participants: Participant[]): string {
+  const lines: string[] = [];
+  lines.push('# Self-Improvement Evolution Report\n');
+  lines.push('Track 3: Self-Improving Skills — Detailed per-participant analysis\n');
+
+  for (const p of participants) {
+    const versions = store.listIdentityVersions(p.id);
+    const evals = store.readEvalLog(p.id);
+
+    lines.push(`## ${p.name}\n`);
+
+    // Identity timeline
+    lines.push('### Identity Timeline\n');
+    for (const tick of versions) {
+      const identity = store.readIdentityVersion(p.id, tick);
+      const label = tick === 0 ? 'START' : `Tick ${tick}`;
+      lines.push(`**${label}**: ${identity}\n`);
+    }
+    lines.push(`**FINAL**: ${p.identity_md}\n`);
+
+    if (evals.length > 0) {
+      // Progress trajectory
+      lines.push('### Progress Trajectory\n');
+      lines.push(evals.map(e => `Tick ${e.tick}: **${e.progress}**`).join(' -> ') + '\n');
+
+      // Learnings
+      const allLearnings = evals.flatMap(e => e.learnings);
+      if (allLearnings.length > 0) {
+        lines.push('### Accumulated Learnings\n');
+        allLearnings.forEach((l, i) => lines.push(`${i + 1}. ${l}`));
+        lines.push('');
+      }
+
+      // Stats trajectory
+      lines.push('### Stats at Each Eval\n');
+      lines.push('| Tick | Energy | Momentum | Morale | Progress |');
+      lines.push('|------|--------|----------|--------|----------|');
+      for (const e of evals) {
+        lines.push(`| ${e.tick} | ${e.stats.energy} | ${e.stats.momentum} | ${e.stats.morale} | ${e.progress} |`);
+      }
+      lines.push('');
+
+      // Changes summary
+      const changes = evals.filter(e => e.changes);
+      if (changes.length > 0) {
+        lines.push('### Mutation History\n');
+        for (const e of changes) {
+          lines.push(`- **Tick ${e.tick}**: ${e.changes}`);
+        }
+        lines.push('');
+      }
+    }
+
+    lines.push('---\n');
+  }
+
+  return lines.join('\n');
+}
+
 const RUBRIC = [
   { criterion: 'Innovation', weight: 25, desc: 'How novel and creative is the idea?' },
   { criterion: 'Execution', weight: 25, desc: 'How well was it built in the time available?' },
@@ -194,7 +377,7 @@ PIVOTS: ${team.pivots.length}${team.pivots.length > 0 ? ' — ' + team.pivots.ma
 RUBRIC:
 ${rubricStr}
 
-Score this team. Write 1 sentence of reasoning, then --- footer.`;
+Score this team. Max 5 words, then --- footer.`;
 
   try {
     const raw = await llm.generate(system, user);
@@ -327,10 +510,15 @@ export async function runAnalysis(llm: LLMProvider): Promise<void> {
   const teamStr = buildTeamSummaries(teams);
   console.log(teamStr);
 
-  // 3. Identity Evolution (Track 3 showcase)
+  // 3. Identity Evolution (Track 3 showcase — all participants)
   console.log(subheader('IDENTITY EVOLUTION (Track 3 Showcase)'));
   const identityStr = buildIdentityEvolution(participants);
   console.log(identityStr);
+
+  // 3b. Self-Improvement Metrics
+  console.log(subheader('SELF-IMPROVEMENT METRICS'));
+  const metricsStr = buildSelfImprovementMetrics(participants);
+  console.log(metricsStr);
 
   // 4. Drama Highlights
   console.log(subheader('DRAMA HIGHLIGHTS'));
@@ -364,11 +552,16 @@ export async function runAnalysis(llm: LLMProvider): Promise<void> {
     '## Timeline\n', timelineStr, '\n',
     '## Teams & Projects\n', teamStr, '\n',
     '## Identity Evolution\n', identityStr, '\n',
+    '## Self-Improvement Metrics\n', metricsStr, '\n',
     '## Drama Highlights\n', dramaStr, '\n',
     '## Awards\n', awardsStr, '\n',
     '## Winner Predictions\n', winnersStr, '\n',
   ];
   store.writeAnalysisFile('report.md', reportLines.join('\n'));
+
+  // Save detailed evolution report
+  const evolutionReport = buildEvolutionReport(participants);
+  store.writeAnalysisFile('evolution.md', evolutionReport);
 
   console.log(header('REPORT SAVED TO data/analysis/'));
 }
