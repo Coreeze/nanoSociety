@@ -710,6 +710,7 @@ async function renderAnalysisDashboard(
     const scoreDelta = (standingByTeamId.get(b.id)?.avg ?? -1) - (standingByTeamId.get(a.id)?.avg ?? -1);
     return scoreDelta !== 0 ? scoreDelta : a.name.localeCompare(b.name);
   });
+  const participantsSorted = [...participants].sort((a, b) => a.name.localeCompare(b.name));
   const totalTracks = new Set(teams.map(team => team.track)).size;
   const totalPivots = teams.reduce((sum, team) => sum + team.pivots.length, 0);
   const totalMutations = events.filter(event => event.type === 'mutation').length;
@@ -827,6 +828,67 @@ async function renderAnalysisDashboard(
         <div class="card-block">
           <label>Pivot Log</label>
           ${pivotMarkup}
+        </div>
+      </article>`;
+  }).join('');
+
+  const participantCards = participantsSorted.map(participant => {
+    const team = participant.team_id
+      ? teams.find(candidate => candidate.id === participant.team_id) ?? null
+      : null;
+    const searchText = [
+      participant.name,
+      participant.background,
+      participant.goal,
+      participant.room,
+      participant.identity_md,
+      team?.name ?? 'solo',
+      team ? cleanDisplayText(team.project_name) : '',
+      ...participant.world_knowledge.slice(-5),
+    ].join(' ').toLowerCase();
+
+    return `
+      <article class="panel participant-card" data-search-target="participant" data-search="${escapeHtml(searchText)}">
+        <div class="card-topline">
+          <div>
+            <div class="eyebrow">Participant</div>
+            <h3>${escapeHtml(participant.name)}</h3>
+          </div>
+          <div class="participant-room">${escapeHtml(participant.room.replaceAll('_', ' '))}</div>
+        </div>
+        <div class="badge-row">
+          <span class="badge">${team ? `Team ${escapeHtml(team.name)}` : 'Solo'}</span>
+          ${team ? `<span class="badge">Track ${team.track}</span>` : ''}
+        </div>
+        <div class="card-block">
+          <label>Background</label>
+          <p>${escapeHtml(participant.background)}</p>
+        </div>
+        <div class="card-block">
+          <label>Goal</label>
+          <p>${escapeHtml(participant.goal)}</p>
+        </div>
+        <div class="card-block">
+          <label>Project</label>
+          <p>${escapeHtml(team ? cleanDisplayText(team.project_name) : 'No team project')}</p>
+        </div>
+        <div class="card-block">
+          <label>Final Stats</label>
+          <div class="meter-row">
+            <span>Energy</span>
+            <div class="meter-track"><div class="meter-fill" style="width:${Math.max(0, Math.min(100, participant.stats.energy))}%"></div></div>
+            <strong>${participant.stats.energy}</strong>
+          </div>
+          <div class="meter-row">
+            <span>Momentum</span>
+            <div class="meter-track"><div class="meter-fill" style="width:${Math.max(0, Math.min(100, participant.stats.momentum))}%"></div></div>
+            <strong>${participant.stats.momentum}</strong>
+          </div>
+          <div class="meter-row">
+            <span>Morale</span>
+            <div class="meter-track"><div class="meter-fill" style="width:${Math.max(0, Math.min(100, participant.stats.morale))}%"></div></div>
+            <strong>${participant.stats.morale}</strong>
+          </div>
         </div>
       </article>`;
   }).join('');
@@ -1094,7 +1156,18 @@ async function renderAnalysisDashboard(
         gap: 12px;
       }
 
+      .participant-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
       .team-card {
+        min-height: 100%;
+      }
+
+      .participant-card {
         min-height: 100%;
       }
 
@@ -1116,6 +1189,14 @@ async function renderAnalysisDashboard(
         color: var(--amber);
         font-size: 30px;
         line-height: 1;
+      }
+
+      .participant-room {
+        color: var(--amber);
+        text-align: right;
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 0.08em;
       }
 
       .card-block {
@@ -1296,13 +1377,26 @@ async function renderAnalysisDashboard(
       <section class="panel search-wrap">
         <div class="search-row">
           <label for="team-search">Search Index</label>
-          <input id="team-search" type="search" placeholder="Search team, project, member, judge quote..." autocomplete="off" />
+          <input id="team-search" type="search" placeholder="Search participant, team, project, member, judge quote..." autocomplete="off" />
           <div id="search-count" class="system-note"></div>
         </div>
       </section>
 
       <section id="team-grid" class="team-grid">
         ${teamCards}
+      </section>
+
+      <section class="panel" style="margin-top: 18px;">
+        <div class="winner-header">
+          <div>
+            <div class="eyebrow">Participant Index</div>
+            <h2>People</h2>
+          </div>
+          <div id="participant-count" class="status-pill"></div>
+        </div>
+        <section id="participant-grid" class="participant-grid">
+          ${participantCards}
+        </section>
       </section>
 
       <div id="empty-state" class="empty-state" hidden>No teams match the current search.</div>
@@ -1340,14 +1434,17 @@ async function renderAnalysisDashboard(
       (function () {
         const searchInput = document.getElementById('team-search');
         const countNode = document.getElementById('search-count');
+        const participantCountNode = document.getElementById('participant-count');
         const emptyState = document.getElementById('empty-state');
         const teamCards = Array.from(document.querySelectorAll('[data-search-target="team"]'));
+        const participantCards = Array.from(document.querySelectorAll('[data-search-target="participant"]'));
         const winnerCards = Array.from(document.querySelectorAll('[data-search-target="winner"]'));
 
         function applySearch() {
           const query = String(searchInput.value || '').trim().toLowerCase();
           const tokens = query.split(/\\s+/).filter(Boolean);
           let visibleTeams = 0;
+          let visibleParticipants = 0;
 
           for (const card of teamCards) {
             const haystack = String(card.getAttribute('data-search') || '').toLowerCase();
@@ -1356,6 +1453,15 @@ async function renderAnalysisDashboard(
             });
             card.hidden = !match;
             if (match) visibleTeams += 1;
+          }
+
+          for (const card of participantCards) {
+            const haystack = String(card.getAttribute('data-search') || '').toLowerCase();
+            const match = tokens.every(function (token) {
+              return haystack.indexOf(token) !== -1;
+            });
+            card.hidden = !match;
+            if (match) visibleParticipants += 1;
           }
 
           for (const card of winnerCards) {
@@ -1367,7 +1473,8 @@ async function renderAnalysisDashboard(
           }
 
           countNode.textContent = visibleTeams + ' / ' + teamCards.length + ' teams visible';
-          emptyState.hidden = visibleTeams !== 0;
+          participantCountNode.textContent = visibleParticipants + ' / ' + participantCards.length + ' participants visible';
+          emptyState.hidden = visibleTeams !== 0 || visibleParticipants !== 0;
         }
 
         searchInput.addEventListener('input', applySearch);
