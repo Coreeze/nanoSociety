@@ -141,8 +141,8 @@
         overflow: hidden;
         padding: 8px 12px;
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        justify-content: center;
         min-height: 0;
       }
 
@@ -179,63 +179,157 @@
         color: var(--fg-dim);
       }
 
-      /* ── Floor plan rooms ── */
-      .floor-row {
-        display: flex;
-        align-items: stretch;
-        gap: 0;
-        flex: 1;
+      /* ── Isometric house ── */
+      .iso-scene {
+        position: relative;
+        width: min(100%, 980px);
+        aspect-ratio: 1.55;
         min-height: 0;
       }
 
-      .room-connector {
-        display: flex;
-        align-items: center;
-        padding: 0 2px;
-        color: var(--border);
-        font-size: 13px;
-        justify-content: center;
-        min-width: 24px;
-        flex-shrink: 0;
+      .iso-grid {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
       }
 
-      .room-box {
-        border: 1px solid var(--border);
-        min-width: 0;
+      .iso-grid .wire {
+        fill: none;
+        stroke: var(--fg);
+        stroke-width: 1.6;
+        stroke-linejoin: round;
+        opacity: 0.92;
+        filter: drop-shadow(0 0 6px rgba(51, 255, 51, 0.38));
+      }
+
+      .iso-grid .wire.dim {
+        opacity: 0.42;
+      }
+
+      .iso-grid .face {
+        fill: rgba(51, 255, 51, 0.04);
+        stroke: rgba(102, 255, 102, 0.18);
+        stroke-width: 1;
+      }
+
+      .iso-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .iso-people {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .iso-people .person-shadow {
+        fill: rgba(0, 0, 0, 0.28);
+      }
+
+      .iso-people .person-body {
+        fill: color-mix(in srgb, currentColor 18%, transparent);
+        stroke: currentColor;
+        stroke-width: 1.1;
+        stroke-linejoin: round;
+      }
+
+      .iso-people .person-head {
+        fill: rgba(10, 10, 10, 0.85);
+        stroke: currentColor;
+        stroke-width: 1.1;
+      }
+
+      .iso-people .person-limb {
+        stroke: currentColor;
+        stroke-width: 1.1;
+        stroke-linecap: round;
+        fill: none;
+      }
+
+      .iso-people .person-ring {
+        fill: none;
+        stroke: rgba(102, 255, 102, 0.16);
+        stroke-width: 1;
+      }
+
+      .iso-people .iso-person {
+        cursor: pointer;
+        filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent));
+      }
+
+      .iso-people .iso-person.solo {
+        color: var(--fg-dim);
+      }
+
+      .iso-people .iso-person.selected .person-ring {
+        stroke: var(--fg);
+        stroke-width: 1.8;
+      }
+
+      .iso-people .iso-person.highlight .person-ring {
+        stroke: var(--highlight);
+        stroke-width: 1.6;
+      }
+
+      .iso-people .iso-person.selected .person-head,
+      .iso-people .iso-person.selected .person-body {
+        fill: rgba(51, 255, 51, 0.16);
+      }
+
+      .iso-room-panel {
+        position: absolute;
+        border: 1px solid rgba(51, 255, 51, 0.28);
+        background: rgba(10, 16, 10, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(102, 255, 102, 0.05), 0 0 16px rgba(51, 255, 51, 0.08);
+        padding: 5px 7px;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        gap: 0;
+        min-width: 76px;
+        max-width: 128px;
       }
 
-      .room-box .room-label {
-        background: var(--border);
-        color: var(--bg);
-        padding: 2px 6px;
+      .iso-room-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .iso-room-name {
+        font-size: 10px;
         font-weight: 700;
-        font-size: 11px;
-        white-space: nowrap;
+        color: var(--fg-bright);
+        letter-spacing: 0.08em;
+      }
+
+      .iso-room-count {
+        font-size: 10px;
+        color: var(--fg-dim);
         flex-shrink: 0;
       }
 
-      .room-box .room-body {
-        padding: 4px 6px;
-        min-height: 0;
-        flex: 1;
-        overflow-y: auto;
-        line-height: 1.6;
+      .iso-room-body {
+        display: none;
       }
 
-      .room-box .room-body::-webkit-scrollbar {
+      .iso-room-body::-webkit-scrollbar {
         width: 4px;
       }
-      .room-box .room-body::-webkit-scrollbar-track {
+      .iso-room-body::-webkit-scrollbar-track {
         background: transparent;
       }
-      .room-box .room-body::-webkit-scrollbar-thumb {
+      .iso-room-body::-webkit-scrollbar-thumb {
         background: var(--border);
       }
 
-      .room-box .room-body .empty {
+      .iso-room-body .empty {
         color: var(--fg-dim);
         font-style: italic;
       }
@@ -266,6 +360,10 @@
       .initials.selected {
         background: var(--fg);
         color: var(--bg);
+      }
+
+      .iso-room-panel .solo {
+        color: var(--fg-dim);
       }
 
       /* ── Sidebar ── */
@@ -607,27 +705,26 @@
         return name.slice(0, 2).toUpperCase();
       }
 
+      const ISO = {
+        width: 960,
+        height: 620,
+        originX: 468,
+        originY: 84,
+        cellX: 18,
+        cellY: 10,
+        wallHeight: 5,
+        wallScale: 20,
+      };
+
       const ROOM_LAYOUT = [
-        {
-          rooms: [
-            { key: "FRONT_GARDEN", label: "FRONT GARDEN", flex: 3 },
-            { key: "MAIN_ROOM", label: "MAIN ROOM", flex: 7 },
-          ],
-        },
-        {
-          rooms: [
-            { key: "BAR", label: "BAR", flex: 2.5 },
-            { key: "KITCHEN", label: "KITCHEN", flex: 3.5 },
-            { key: "BACK_GARDEN", label: "BACK GARDEN", flex: 3.5 },
-          ],
-        },
-        {
-          rooms: [
-            { key: "OFFICE", label: "OFFICE", flex: 2.5 },
-            { key: "STAIRS", label: "STAIRS / 2F", flex: 3, mergeKeys: ["STAIRS", "SECOND_FLOOR"] },
-            { key: "BATHROOM", label: "BATH+STOR", flex: 3, mergeKeys: ["BATHROOM", "STORAGE"] },
-          ],
-        },
+        { key: "KITCHEN", label: "KITCHEN", x: 0, y: 0, w: 11, h: 5, panelInset: 12 },
+        { key: "BAR", label: "BAR", x: 11, y: 0, w: 6, h: 6, panelInset: 10 },
+        { key: "OFFICE", label: "OFFICE", x: 17, y: 0, w: 9, h: 7, panelInset: 12 },
+        { key: "MAIN_ROOM", label: "MAIN HALL", x: 0, y: 5, w: 14, h: 8, panelInset: 12 },
+        { key: "STAIRS", label: "STAIRS / 2F", x: 14, y: 6, w: 4, h: 7, mergeKeys: ["STAIRS", "SECOND_FLOOR"], panelInset: 8 },
+        { key: "BATHROOM", label: "BATH+STOR", x: 18, y: 7, w: 8, h: 4, mergeKeys: ["BATHROOM", "STORAGE"], panelInset: 9 },
+        { key: "FRONT_GARDEN", label: "FRONT GARDEN", x: 0, y: 13, w: 11, h: 5, panelInset: 12 },
+        { key: "BACK_GARDEN", label: "GARDEN", x: 11, y: 11, w: 15, h: 7, panelInset: 12 },
       ];
 
       let state = null;
@@ -736,91 +833,285 @@
       function renderFloorPlan() {
         const container = document.getElementById("floor-plan");
         container.innerHTML = "";
+        const scene = document.createElement("div");
+        scene.className = "iso-scene";
 
-        for (const row of ROOM_LAYOUT) {
-          const rowDiv = document.createElement("div");
-          rowDiv.className = "floor-row";
+        scene.appendChild(buildIsoGrid());
+        scene.appendChild(buildParticipantLayer());
 
-          for (let i = 0; i < row.rooms.length; i++) {
-            if (i > 0) {
-              const conn = document.createElement("div");
-              conn.className = "room-connector";
-              conn.textContent = "───";
-              rowDiv.appendChild(conn);
-            }
+        const overlay = document.createElement("div");
+        overlay.className = "iso-overlay";
 
-            const roomDef = row.rooms[i];
-            const roomKeys = roomDef.mergeKeys || [roomDef.key];
-            const participants = state.participants.filter((p) => roomKeys.includes(p.room));
-
-            const box = document.createElement("div");
-            box.className = "room-box";
-            box.style.flex = roomDef.flex;
-
-            const label = document.createElement("div");
-            label.className = "room-label";
-            label.textContent = `${roomDef.label} (${participants.length})`;
-            box.appendChild(label);
-
-            const body = document.createElement("div");
-            body.className = "room-body";
-
-            if (participants.length === 0) {
-              const empty = document.createElement("span");
-              empty.className = "empty";
-              empty.textContent = "(empty)";
-              body.appendChild(empty);
-            } else {
-              const teamGroups = {};
-              const solos = [];
-
-              for (const p of participants) {
-                if (p.team_id) {
-                  if (!teamGroups[p.team_id]) teamGroups[p.team_id] = [];
-                  teamGroups[p.team_id].push(p);
-                } else {
-                  solos.push(p);
-                }
-              }
-
-              for (const [teamId, members] of Object.entries(teamGroups)) {
-                const group = document.createElement("div");
-                group.className = "team-group";
-
-                const team = state.teams.find((t) => t.id === teamId);
-                const cc = getTeamColorClass(teamId);
-
-                const tLabel = document.createElement("span");
-                tLabel.className = `team-label ${cc}`;
-                tLabel.textContent = `[${team ? team.name : teamId}] `;
-                group.appendChild(tLabel);
-
-                for (const m of members) {
-                  const span = makeInitialSpan(m, cc);
-                  group.appendChild(span);
-                  group.appendChild(document.createTextNode(" "));
-                }
-
-                body.appendChild(group);
-              }
-
-              if (solos.length > 0) {
-                const soloDiv = document.createElement("div");
-                for (const p of solos) {
-                  const span = makeInitialSpan(p, "solo");
-                  soloDiv.appendChild(span);
-                  soloDiv.appendChild(document.createTextNode(" "));
-                }
-                body.appendChild(soloDiv);
-              }
-            }
-
-            box.appendChild(body);
-            rowDiv.appendChild(box);
-          }
-
-          container.appendChild(rowDiv);
+        for (const roomDef of ROOM_LAYOUT) {
+          const roomKeys = roomDef.mergeKeys || [roomDef.key];
+          const participants = state.participants.filter((p) => roomKeys.includes(p.room));
+          overlay.appendChild(buildRoomPanel(roomDef, participants));
         }
+
+        scene.appendChild(overlay);
+        container.appendChild(scene);
+      }
+
+      function isoProject(x, y, z = 0) {
+        return {
+          x: ISO.originX + (x - y) * ISO.cellX,
+          y: ISO.originY + (x + y) * ISO.cellY - z * ISO.wallScale,
+        };
+      }
+
+      function topFacePoints(roomDef) {
+        return [
+          isoProject(roomDef.x, roomDef.y, ISO.wallHeight),
+          isoProject(roomDef.x + roomDef.w, roomDef.y, ISO.wallHeight),
+          isoProject(roomDef.x + roomDef.w, roomDef.y + roomDef.h, ISO.wallHeight),
+          isoProject(roomDef.x, roomDef.y + roomDef.h, ISO.wallHeight),
+        ];
+      }
+
+      function pointsToPath(points) {
+        return points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+      }
+
+      function linePath(a, b) {
+        return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+      }
+
+      function buildIsoGrid() {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.classList.add("iso-grid");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        const house = { x: 0, y: 0, w: 26, h: 18 };
+        const floor = [
+          isoProject(house.x, house.y, 0),
+          isoProject(house.x + house.w, house.y, 0),
+          isoProject(house.x + house.w, house.y + house.h, 0),
+          isoProject(house.x, house.y + house.h, 0),
+        ];
+        const rim = [
+          isoProject(house.x, house.y, ISO.wallHeight),
+          isoProject(house.x + house.w, house.y, ISO.wallHeight),
+          isoProject(house.x + house.w, house.y + house.h, ISO.wallHeight),
+          isoProject(house.x, house.y + house.h, ISO.wallHeight),
+        ];
+
+        const floorFace = document.createElementNS(svgNS, "path");
+        floorFace.setAttribute("d", pointsToPath(floor));
+        floorFace.setAttribute("class", "face");
+        svg.appendChild(floorFace);
+
+        for (const roomDef of ROOM_LAYOUT) {
+          const face = document.createElementNS(svgNS, "path");
+          face.setAttribute("d", pointsToPath(topFacePoints(roomDef)));
+          face.setAttribute("class", "face");
+          svg.appendChild(face);
+        }
+
+        const outerTop = document.createElementNS(svgNS, "path");
+        outerTop.setAttribute("d", pointsToPath(rim));
+        outerTop.setAttribute("class", "wire");
+        svg.appendChild(outerTop);
+
+        const outerBottom = document.createElementNS(svgNS, "path");
+        outerBottom.setAttribute("d", pointsToPath(floor));
+        outerBottom.setAttribute("class", "wire dim");
+        svg.appendChild(outerBottom);
+
+        for (let i = 0; i < rim.length; i++) {
+          const edge = document.createElementNS(svgNS, "path");
+          edge.setAttribute("d", linePath(rim[i], floor[i]));
+          edge.setAttribute("class", "wire");
+          svg.appendChild(edge);
+        }
+
+        for (const roomDef of ROOM_LAYOUT) {
+          const top = topFacePoints(roomDef);
+          const floorCorners = [
+            isoProject(roomDef.x, roomDef.y, 0),
+            isoProject(roomDef.x + roomDef.w, roomDef.y, 0),
+            isoProject(roomDef.x + roomDef.w, roomDef.y + roomDef.h, 0),
+            isoProject(roomDef.x, roomDef.y + roomDef.h, 0),
+          ];
+
+          const topPath = document.createElementNS(svgNS, "path");
+          topPath.setAttribute("d", pointsToPath(top));
+          topPath.setAttribute("class", "wire");
+          svg.appendChild(topPath);
+
+          for (let i = 0; i < top.length; i++) {
+            const column = document.createElementNS(svgNS, "path");
+            column.setAttribute("d", linePath(top[i], floorCorners[i]));
+            column.setAttribute("class", "wire");
+            svg.appendChild(column);
+          }
+        }
+
+        return svg;
+      }
+
+      function buildParticipantLayer() {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.classList.add("iso-people");
+        svg.setAttribute("viewBox", `0 0 ${ISO.width} ${ISO.height}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        const placements = [];
+        for (const roomDef of ROOM_LAYOUT) {
+          const roomKeys = roomDef.mergeKeys || [roomDef.key];
+          const participants = state.participants
+            .filter((p) => roomKeys.includes(p.room))
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name));
+          const anchors = getRoomAnchors(roomDef, participants.length);
+
+          for (let i = 0; i < participants.length; i++) {
+            const anchor = anchors[i];
+            if (!anchor) continue;
+            const participant = participants[i];
+            const ground = isoProject(anchor.x, anchor.y, 0);
+            placements.push({ participant, ground, scale: anchor.scale });
+          }
+        }
+
+        placements.sort((a, b) => a.ground.y - b.ground.y);
+
+        for (const placement of placements) {
+          svg.appendChild(buildParticipantGlyph(placement.participant, placement));
+        }
+
+        return svg;
+      }
+
+      function getRoomAnchors(roomDef, count) {
+        if (count === 0) return [];
+
+        const padX = Math.min(1.2, Math.max(0.55, roomDef.w * 0.12));
+        const padY = Math.min(1.1, Math.max(0.55, roomDef.h * 0.14));
+        const width = Math.max(0.8, roomDef.w - padX * 2);
+        const height = Math.max(0.8, roomDef.h - padY * 2);
+        const cols = Math.max(1, Math.ceil(Math.sqrt((count * width) / height)));
+        const rows = Math.max(1, Math.ceil(count / cols));
+        const cellW = width / cols;
+        const cellH = height / rows;
+        const anchors = [];
+        const baseScale = Math.max(0.34, Math.min(0.82, Math.min(cellW * 0.72, cellH * 1.08)));
+
+        for (let i = 0; i < count; i++) {
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          const stagger = row % 2 === 0 ? 0 : Math.min(cellW * 0.22, 0.28);
+          const driftX = ((i * 37) % 9) * 0.018 - 0.07;
+          const driftY = ((i * 53) % 9) * 0.016 - 0.06;
+          const x = Math.min(roomDef.x + roomDef.w - padX * 0.6, roomDef.x + padX + cellW * (col + 0.5) + stagger + driftX);
+          const y = Math.min(roomDef.y + roomDef.h - padY * 0.75, roomDef.y + padY + cellH * (row + 0.55) + driftY);
+          anchors.push({ x, y, scale: baseScale });
+        }
+
+        return anchors;
+      }
+
+      function buildParticipantGlyph(participant, placement) {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const g = document.createElementNS(svgNS, "g");
+        const colorClass = participant.team_id ? getTeamColorClass(participant.team_id) : "solo";
+        const scale = placement.scale || 1;
+
+        g.setAttribute("transform", `translate(${placement.ground.x} ${placement.ground.y}) scale(${scale})`);
+        g.setAttribute("class", `iso-person ${colorClass}`);
+        g.dataset.pid = participant.id;
+
+        if (participant.id === selectedParticipantId) {
+          g.classList.add("selected");
+        }
+
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          if (participant.name.toLowerCase().includes(q)) {
+            g.classList.add("highlight");
+          }
+        }
+
+        const title = document.createElementNS(svgNS, "title");
+        title.textContent = participant.name;
+        g.appendChild(title);
+
+        const ring = document.createElementNS(svgNS, "ellipse");
+        ring.setAttribute("class", "person-ring");
+        ring.setAttribute("cx", "0");
+        ring.setAttribute("cy", "0");
+        ring.setAttribute("rx", "7");
+        ring.setAttribute("ry", "3.6");
+        g.appendChild(ring);
+
+        const shadow = document.createElementNS(svgNS, "ellipse");
+        shadow.setAttribute("class", "person-shadow");
+        shadow.setAttribute("cx", "0");
+        shadow.setAttribute("cy", "1.2");
+        shadow.setAttribute("rx", "4.8");
+        shadow.setAttribute("ry", "2.5");
+        g.appendChild(shadow);
+
+        const body = document.createElementNS(svgNS, "path");
+        body.setAttribute("class", "person-body");
+        body.setAttribute("d", "M -2.6 -2.2 L 0 -4.4 L 2.6 -2.2 L 2.1 -10.4 L 0 -13.2 L -2.1 -10.4 Z");
+        g.appendChild(body);
+
+        const head = document.createElementNS(svgNS, "circle");
+        head.setAttribute("class", "person-head");
+        head.setAttribute("cx", "0");
+        head.setAttribute("cy", "-16.3");
+        head.setAttribute("r", "2.7");
+        g.appendChild(head);
+
+        const arms = document.createElementNS(svgNS, "path");
+        arms.setAttribute("class", "person-limb");
+        arms.setAttribute("d", "M -4.1 -8.6 L 0 -10.1 L 4.1 -8.6");
+        g.appendChild(arms);
+
+        const legs = document.createElementNS(svgNS, "path");
+        legs.setAttribute("class", "person-limb");
+        legs.setAttribute("d", "M -1.2 -2.4 L -2.8 1.8 M 1.2 -2.4 L 2.8 1.8");
+        g.appendChild(legs);
+
+        g.addEventListener("click", () => selectParticipant(participant.id));
+        return g;
+      }
+
+      function buildRoomPanel(roomDef, participants) {
+        const panel = document.createElement("div");
+        panel.className = "iso-room-panel";
+
+        const top = topFacePoints(roomDef);
+        const xs = top.map((p) => p.x);
+        const ys = top.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const inset = roomDef.panelInset || 10;
+
+        panel.style.left = `${minX + inset}px`;
+        panel.style.top = `${minY + inset}px`;
+        panel.style.width = `${Math.min(128, Math.max(76, maxX - minX - inset * 2))}px`;
+
+        const head = document.createElement("div");
+        head.className = "iso-room-head";
+
+        const name = document.createElement("div");
+        name.className = "iso-room-name";
+        name.textContent = roomDef.label;
+        head.appendChild(name);
+
+        const count = document.createElement("div");
+        count.className = "iso-room-count";
+        count.textContent = `${participants.length}`;
+        head.appendChild(count);
+
+        panel.appendChild(head);
+        return panel;
       }
 
       function makeInitialSpan(participant, colorClass) {
